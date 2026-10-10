@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Caregiver Dashboard | Smart Medication Adherence</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="app-layout">
+
+  <!-- NAVBAR -->
+  <header class="navbar">
+    <a href="{{ url_for('caregiver_dashboard') }}" class="nav-brand">
+      <div class="brand-icon-box" style="background:linear-gradient(135deg, #10B981 0%, #00F2FE 100%);">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#042022" stroke-width="2.5">
+          <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>
+        </svg>
+      </div>
+      <div>
+        <span class="brand-name">SmartMed</span>
+        <span class="brand-tag" style="color:#6EE7B7; background:rgba(16, 185, 129, 0.15);">Caregiver Portal</span>
+      </div>
+    </a>
+
+    <nav class="nav-links">
+      <a href="{{ url_for('caregiver_dashboard') }}" class="nav-link active">Patient Care</a>
+      <a href="{{ url_for('history') }}" class="nav-link">Adherence History</a>
+    </nav>
+
+    <div class="nav-actions">
+      <!-- User Profile Badge -->
+      <div class="user-profile-badge">
+        <div class="user-avatar" style="background:#059669;">
+          {{ user_name[0] if user_name else 'C' }}
+        </div>
+        <div class="user-name-role">
+          <span class="user-name-text">{{ user_name }}</span>
+          <span class="user-role-text">Caregiver</span>
+        </div>
+      </div>
+
+      <!-- Logout -->
+      <a href="{{ url_for('logout') }}" class="btn-logout" title="Sign Out">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+        </svg>
+      </a>
+    </div>
+  </header>
+
+  <!-- MAIN CAREGIVER CONTENT -->
+  <main class="main-content">
+
+    <!-- Greeting Header -->
+    <div class="dashboard-header">
+      <div class="header-title-box">
+        <h1>Caregiver Dashboard</h1>
+        <p>Monitoring Patient: <strong style="color:var(--cyan-accent);">{{ patient.name }}</strong> ({{ patient.email }}) • {{ today_date }}</p>
+      </div>
+
+      <div class="header-action-group">
+        <a href="{{ url_for('history') }}" class="btn-secondary">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/>
+          </svg>
+          <span>Full History Log</span>
+        </a>
+      </div>
+    </div>
+
+    <!-- PATIENT SUMMARY METRICS -->
+    <div class="metrics-grid">
+      <div class="metric-card highlight">
+        <div class="metric-header">
+          <span class="metric-label">Patient Adherence (Today)</span>
+          <div class="metric-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--cyan-accent)" stroke-width="2">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+            </svg>
+          </div>
+        </div>
+        <div class="metric-value cyan">{{ stats.percentage }}%</div>
+        <span class="metric-sub">{{ stats.taken }} taken of {{ stats.total }} prescribed today</span>
+      </div>
+
+      <div class="metric-card">
+        <div class="metric-header">
+          <span class="metric-label">Active Alerts</span>
+          <div class="metric-icon" style="background:var(--status-missed-bg);">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--status-missed)" stroke-width="2">
+              <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+          </div>
+        </div>
+        <div class="metric-value" style="color:var(--status-missed);">{{ missed_alerts|length }}</div>
+        <span class="metric-sub">Missed dose events recorded</span>
+      </div>
+
+      <div class="metric-card">
+        <div class="metric-header">
+          <span class="metric-label">Doses Taken</span>
+          <div class="metric-icon" style="background:var(--status-taken-bg);">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--status-taken)" stroke-width="2.5">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+          </div>
+        </div>
+        <div class="metric-value" style="color:var(--status-taken);">{{ stats.taken }}</div>
+        <span class="metric-sub">Confirmed compliance</span>
+      </div>
+
+      <div class="metric-card">
+        <div class="metric-header">
+          <span class="metric-label">Pending / Unconfirmed</span>
+          <div class="metric-icon" style="background:var(--status-pending-bg);">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--status-pending)" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+            </svg>
+          </div>
+        </div>
+        <div class="metric-value" style="color:var(--status-pending);">{{ stats.pending }}</div>
+        <span class="metric-sub">Scheduled for later today</span>
+      </div>
+    </div>
+
+    <!-- MISSED MEDICATION ALERTS SECTION -->
+    <section class="section-card" style="border-color: rgba(239, 68, 68, 0.35);">
+      <div class="section-header">
+        <div class="section-title-box">
+          <div style="width:28px; height:28px; border-radius:6px; background:rgba(239, 68, 68, 0.15); display:flex; align-items:center; justify-content:center; color:var(--status-missed);">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+          </div>
+          <h2 class="section-title" style="color:#FCA5A5;">Missed Medication Alerts</h2>
+          <span class="section-badge" style="background:rgba(239, 68, 68, 0.2); color:#FCA5A5;">Critical Attention</span>
+        </div>
+        <span style="font-size:0.8rem; color:var(--text-dim);">Real-time alerts for patient non-compliance</span>
+      </div>
+
+      <div class="alerts-container">
+        {% if missed_alerts %}
+          {% for a in missed_alerts %}
+            <div class="alert-card">
+              <div class="alert-card-left">
+                <div class="alert-icon-box">⚠</div>
+                <div class="alert-content">
+                  <h4>Patient missed {{ a.medicine_name or 'Prescription' }} ({{ a.dosage or 'Prescribed dose' }})</h4>
+                  <p>Scheduled Time: <strong>{{ a.scheduled_time or 'Today' }}</strong> • Patient: {{ a.patient_name }}</p>
+                  <p style="font-size:0.75rem; color:var(--text-dim); margin-top:4px;">{{ a.message }}</p>
+                </div>
+              </div>
+              <div class="alert-meta">
+                <span>Alert logged at:</span><br>
+                <strong>{{ a.created_at }}</strong>
+              </div>
+            </div>
+          {% endfor %}
+        {% else %}
+          <div style="padding:24px; text-align:center; color:var(--text-dim); background:#111B2E; border-radius:8px;">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--status-taken)" stroke-width="2" style="margin-bottom:6px;"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            <p>No missed medication alerts logged. Patient adherence is on track!</p>
+          </div>
+        {% endif %}
+      </div>
+    </section>
+
+    <!-- MEDICATION STATUS (TODAY) -->
+    <section class="section-card">
+      <div class="section-header">
+        <div class="section-title-box">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--cyan-accent)" stroke-width="2">
+            <rect width="18" height="18" x="3" y="3" rx="2"/><path d="m9 12 2 2 4-4"/>
+          </svg>
+          <h2 class="section-title">Today's Medication Status for {{ patient.name }}</h2>
+        </div>
+      </div>
+
+      <div class="table-responsive">
+        <table class="med-table">
+          <thead>
+            <tr>
+              <th>Medicine</th>
+              <th>Dosage</th>
+              <th>Scheduled Time</th>
+              <th>Adherence Status</th>
+              <th>Confirmation Timestamp</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% if patient_meds %}
+              {% for pm in patient_meds %}
+                <tr>
+                  <td class="med-name-cell">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--cyan-accent)" stroke-width="2">
+                      <path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z"/>
+                    </svg>
+                    <span>{{ pm.medicine_name }}</span>
+                  </td>
+                  <td>{{ pm.dosage }}</td>
+                  <td>
+                    <span class="med-time-badge">{{ pm.scheduled_time }}</span>
+                  </td>
+                  <td>
+                    {% if pm.status == 'TAKEN' %}
+                      <span class="status-pill status-taken">✓ TAKEN</span>
+                    {% elif pm.status == 'MISSED' %}
+                      <span class="status-pill status-missed">⚠ MISSED</span>
+                    {% else %}
+                      <span class="status-pill status-pending">⏳ PENDING</span>
+                    {% endif %}
+                  </td>
+                  <td style="font-size:0.8rem; color:var(--text-dim);">
+                    {{ pm.confirmed_at if pm.confirmed_at else '— Awaiting confirmation' }}
+                  </td>
+                </tr>
+              {% endfor %}
+            {% else %}
+              <tr>
+                <td colspan="5" style="text-align:center; padding:24px; color:var(--text-dim);">
+                  No medications scheduled for this patient today.
+                </td>
+              </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- RECENT MEDICATION ADHERENCE LOG -->
+    <section class="section-card">
+      <div class="section-header">
+        <div class="section-title-box">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--cyan-accent)" stroke-width="2">
+            <path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/>
+          </svg>
+          <h2 class="section-title">Recent Adherence Activity</h2>
+        </div>
+        <a href="{{ url_for('history') }}" style="font-size:0.8rem; color:var(--cyan-accent); text-decoration:none;">View all history →</a>
+      </div>
+
+      <div class="table-responsive">
+        <table class="med-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Medicine</th>
+              <th>Dosage</th>
+              <th>Scheduled Time</th>
+              <th>Status</th>
+              <th>Confirmed At</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in recent_history %}
+              <tr>
+                <td>{{ r.scheduled_date }}</td>
+                <td style="font-weight:600; color:#FFFFFF;">{{ r.medicine_name }}</td>
+                <td>{{ r.dosage }}</td>
+                <td>{{ r.scheduled_time }}</td>
+                <td>
+                  {% if r.status == 'TAKEN' %}
+                    <span class="status-pill status-taken">✓ TAKEN</span>
+                  {% elif r.status == 'MISSED' %}
+                    <span class="status-pill status-missed">✕ MISSED</span>
+                  {% else %}
+                    <span class="status-pill status-pending">⏳ PENDING</span>
+                  {% endif %}
+                </td>
+                <td style="font-size:0.8rem; color:var(--text-dim);">
+                  {{ r.confirmed_at if r.confirmed_at else '—' }}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+</body>
+</html>

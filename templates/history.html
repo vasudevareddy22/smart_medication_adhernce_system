@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Adherence History | Smart Medication Adherence</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="app-layout">
+
+  <!-- TOP NAVBAR -->
+  <header class="navbar">
+    <a href="{{ url_for('index') }}" class="nav-brand">
+      <div class="brand-icon-box">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z"/>
+          <path d="m8.5 8.5 7 7"/>
+        </svg>
+      </div>
+      <div>
+        <span class="brand-name">SmartMed</span>
+        <span class="brand-tag">History</span>
+      </div>
+    </a>
+
+    <nav class="nav-links">
+      <a href="{{ url_for('index') }}" class="nav-link">Dashboard</a>
+      <a href="{{ url_for('history') }}" class="nav-link active">Adherence History</a>
+    </nav>
+
+    <div class="nav-actions">
+      <a href="{{ url_for('index') }}" class="btn-secondary" style="padding:6px 14px; font-size:0.8rem;">
+        ← Back to Dashboard
+      </a>
+      <a href="{{ url_for('logout') }}" class="btn-logout" title="Sign Out">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+        </svg>
+      </a>
+    </div>
+  </header>
+
+  <!-- MAIN CONTAINER -->
+  <main class="main-content">
+
+    <div class="dashboard-header">
+      <div class="header-title-box">
+        <h1>Adherence History Log</h1>
+        <p>Patient: <strong style="color:var(--cyan-accent);">{{ patient_name }}</strong> • Complete prescription compliance audit trail</p>
+      </div>
+
+      <!-- PERIOD FILTERS -->
+      <div class="filter-bar">
+        <a href="{{ url_for('history', filter='all') }}" class="filter-btn {{ 'active' if active_filter == 'all' else '' }}">All Time</a>
+        <a href="{{ url_for('history', filter='today') }}" class="filter-btn {{ 'active' if active_filter == 'today' else '' }}">Today</a>
+        <a href="{{ url_for('history', filter='week') }}" class="filter-btn {{ 'active' if active_filter == 'week' else '' }}">This Week</a>
+        <a href="{{ url_for('history', filter='month') }}" class="filter-btn {{ 'active' if active_filter == 'month' else '' }}">This Month</a>
+      </div>
+    </div>
+
+    <!-- TABLE CARD -->
+    <section class="section-card">
+      <div class="section-header">
+        <div class="section-title-box">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--cyan-accent)" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
+          </svg>
+          <h2 class="section-title">Medication Records ({{ records|length }} entries)</h2>
+        </div>
+        <span style="font-size:0.8rem; color:var(--text-dim);">Live records loaded from SQLite database</span>
+      </div>
+
+      <div class="table-responsive">
+        <table class="med-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Medicine</th>
+              <th>Dosage</th>
+              <th>Scheduled Time</th>
+              <th>Status</th>
+              <th>Confirmed Time</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% if records %}
+              {% for r in records %}
+                <tr>
+                  <td style="font-weight:600; color:#E2E8F0;">{{ r.scheduled_date }}</td>
+                  <td>
+                    <div class="med-name-cell">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--cyan-accent)" stroke-width="2">
+                        <path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z"/>
+                      </svg>
+                      <span>{{ r.medicine_name }}</span>
+                    </div>
+                  </td>
+                  <td>{{ r.dosage }}</td>
+                  <td>
+                    <span class="med-time-badge">{{ r.scheduled_time }}</span>
+                  </td>
+                  <td>
+                    {% if r.status == 'TAKEN' %}
+                      <span class="status-pill status-taken">✓ TAKEN</span>
+                    {% elif r.status == 'MISSED' %}
+                      <span class="status-pill status-missed">✕ MISSED</span>
+                    {% else %}
+                      <span class="status-pill status-pending">⏳ PENDING</span>
+                    {% endif %}
+                  </td>
+                  <td style="font-size:0.8rem; color:var(--text-muted);">
+                    {{ r.confirmed_at if r.confirmed_at else '—' }}
+                  </td>
+                </tr>
+              {% endfor %}
+            {% else %}
+              <tr>
+                <td colspan="6" style="text-align:center; padding:32px; color:var(--text-dim);">
+                  No adherence records found for the selected time filter.
+                </td>
+              </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+</body>
+</html>
