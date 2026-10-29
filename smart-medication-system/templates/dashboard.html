@@ -30,6 +30,7 @@
       <a href="{{ url_for('add_medication') }}" class="nav-link">+ Add Medicine</a>
       <a href="{{ url_for('history') }}" class="nav-link">Adherence History</a>
       <a href="#analyticsSection" class="nav-link">Analytics</a>
+      <a href="{{ url_for('settings') }}" class="nav-link">Settings</a>
     </nav>
 
     <div class="nav-actions">
@@ -341,6 +342,79 @@
 
       <button type="button" class="btn-secondary" style="margin-top:6px; justify-content:center;" onclick="closeReminderModal()">
         Dismiss / Remind Later
+      </button>
+    </div>
+  <!-- ==========================================================================
+       MEDIVOICE FLOATING ASSISTANT BUTTON & DRAWER
+       ========================================================================== -->
+  <button type="button" class="medivoice-trigger-btn" onclick="toggleMediVoice()" title="Open MediVoice AI Assistant">
+    <div class="medivoice-pulse-dot"></div>
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+      <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/>
+    </svg>
+    <span>MediVoice AI</span>
+  </button>
+
+  <div class="medivoice-drawer" id="medivoiceDrawer">
+    <div class="medivoice-header">
+      <div class="medivoice-header-left">
+        <div class="medivoice-avatar">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/>
+          </svg>
+        </div>
+        <div>
+          <div class="medivoice-title">MediVoice Assistant</div>
+          <div class="medivoice-subtitle">
+            <span class="medivoice-status-dot" id="medivoiceStatusDot"></span>
+            <span id="medivoiceStatusText">Online • Ready</span>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex; align-items:center; gap:8px;">
+        <button type="button" class="medivoice-stop-btn" id="medivoiceStopBtn" onclick="stopSpeaking()" title="Stop speaking">
+          ⏹ Stop
+        </button>
+        <button type="button" class="medivoice-close-btn" onclick="toggleMediVoice()" title="Close MediVoice">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Messages Container -->
+    <div class="medivoice-messages" id="medivoiceMessages">
+      <div class="medivoice-msg assistant">
+        👋 Hi {{ user_name }}! I am <strong>MediVoice</strong>, your personal medication assistant. You can speak to me by pressing the microphone button below or type a message.
+      </div>
+    </div>
+
+    <!-- Quick Prompt Chips -->
+    <div class="medivoice-quick-prompts">
+      <button type="button" class="medivoice-chip" onclick="sendQuickChip('What medicines do I need to take today?')">💊 Today's Medicines</button>
+      <button type="button" class="medivoice-chip" onclick="sendQuickChip('What is my adherence percentage?')">📊 My Adherence</button>
+      <button type="button" class="medivoice-chip" onclick="sendQuickChip('Have I missed any doses this week?')">⚠️ Missed Doses</button>
+      <button type="button" class="medivoice-chip" onclick="sendQuickChip('I took my medicine')">✓ Mark Taken</button>
+    </div>
+
+    <!-- Live Speech Recognition Preview -->
+    <div class="medivoice-live-preview" id="medivoiceLivePreview">
+      Listening...
+    </div>
+
+    <!-- Controls Bar -->
+    <div class="medivoice-controls">
+      <button type="button" class="medivoice-mic-btn" id="medivoiceMicBtn" onclick="toggleListening()" title="Start/Stop Voice Recording">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/>
+        </svg>
+      </button>
+
+      <input type="text" class="medivoice-text-input" id="medivoiceInput" placeholder="Ask MediVoice or type a question...">
+
+      <button type="button" class="medivoice-send-btn" onclick="sendMediVoiceMessage()" title="Send">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+        </svg>
       </button>
     </div>
   </div>

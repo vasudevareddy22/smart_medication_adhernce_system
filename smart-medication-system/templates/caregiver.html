@@ -26,6 +26,7 @@
     <nav class="nav-links">
       <a href="{{ url_for('caregiver_dashboard') }}" class="nav-link active">Patient Care</a>
       <a href="{{ url_for('history') }}" class="nav-link">Adherence History</a>
+      <a href="{{ url_for('settings') }}" class="nav-link">Settings</a>
     </nav>
 
     <div class="nav-actions">
@@ -52,15 +53,37 @@
   <!-- MAIN CAREGIVER CONTENT -->
   <main class="main-content">
 
-    <!-- Greeting Header -->
+    <!-- Greeting Header with Patient Selector & Period Filters -->
     <div class="dashboard-header">
       <div class="header-title-box">
         <h1>Caregiver Dashboard</h1>
-        <p>Monitoring Patient: <strong style="color:var(--cyan-accent);">{{ patient.name }}</strong> ({{ patient.email }}) • {{ today_date }}</p>
+        {% if patient %}
+          <div style="display:flex; align-items:center; gap:12px; margin-top:6px; flex-wrap:wrap;">
+            <label for="caregiverPatientSelect" style="font-size:0.8rem; color:var(--text-muted); font-weight:600;">Monitored Patient:</label>
+            <select id="caregiverPatientSelect" class="auth-input no-left-icon" style="height:34px; width:auto; padding:0 12px; background:#132038; font-size:0.85rem;" onchange="window.location.href='{{ url_for('caregiver_dashboard') }}?patient_id=' + this.value">
+              {% for p in authorized_patients %}
+                <option value="{{ p.id }}" {% if p.id == patient.id %}selected{% endif %}>
+                  {{ p.name }} ({{ p.email }})
+                </option>
+              {% endfor %}
+            </select>
+            <span style="font-size:0.8rem; color:var(--text-dim);">• {{ today_date }}</span>
+          </div>
+        {% else %}
+          <p style="color:var(--status-missed); margin-top:4px;">No authorized patients currently assigned.</p>
+        {% endif %}
       </div>
 
       <div class="header-action-group">
-        <a href="{{ url_for('history') }}" class="btn-secondary">
+        <!-- Date Filters -->
+        <div class="filter-bar">
+          <a href="{{ url_for('caregiver_dashboard', patient_id=patient.id if patient else None, filter='all') }}" class="filter-btn {{ 'active' if history_filter == 'all' else '' }}">All</a>
+          <a href="{{ url_for('caregiver_dashboard', patient_id=patient.id if patient else None, filter='today') }}" class="filter-btn {{ 'active' if history_filter == 'today' else '' }}">Today</a>
+          <a href="{{ url_for('caregiver_dashboard', patient_id=patient.id if patient else None, filter='week') }}" class="filter-btn {{ 'active' if history_filter == 'week' else '' }}">7 Days</a>
+          <a href="{{ url_for('caregiver_dashboard', patient_id=patient.id if patient else None, filter='month') }}" class="filter-btn {{ 'active' if history_filter == 'month' else '' }}">30 Days</a>
+        </div>
+
+        <a href="{{ url_for('history', patient_id=patient.id if patient else None) }}" class="btn-secondary">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/>
           </svg>
@@ -279,5 +302,82 @@
     </section>
 
   </main>
+
+  <!-- ==========================================================================
+       MEDIVOICE FLOATING ASSISTANT BUTTON & DRAWER FOR CAREGIVER
+       ========================================================================== -->
+  <button type="button" class="medivoice-trigger-btn" onclick="toggleMediVoice()" title="Open MediVoice AI Assistant">
+    <div class="medivoice-pulse-dot"></div>
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+      <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/>
+    </svg>
+    <span>MediVoice AI</span>
+  </button>
+
+  <div class="medivoice-drawer" id="medivoiceDrawer">
+    <div class="medivoice-header">
+      <div class="medivoice-header-left">
+        <div class="medivoice-avatar">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/>
+          </svg>
+        </div>
+        <div>
+          <div class="medivoice-title">MediVoice Caregiver AI</div>
+          <div class="medivoice-subtitle">
+            <span class="medivoice-status-dot" id="medivoiceStatusDot"></span>
+            <span id="medivoiceStatusText">Online • Ready</span>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex; align-items:center; gap:8px;">
+        <button type="button" class="medivoice-stop-btn" id="medivoiceStopBtn" onclick="stopSpeaking()" title="Stop speaking">
+          ⏹ Stop
+        </button>
+        <button type="button" class="medivoice-close-btn" onclick="toggleMediVoice()" title="Close MediVoice">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Messages Container -->
+    <div class="medivoice-messages" id="medivoiceMessages">
+      <div class="medivoice-msg assistant">
+        👋 Hi {{ user_name }}! I am <strong>MediVoice</strong> for Caregivers. You can speak or type to check patient adherence, query missed doses today, or view pending schedules.
+      </div>
+    </div>
+
+    <!-- Caregiver Quick Prompt Chips -->
+    <div class="medivoice-quick-prompts">
+      <button type="button" class="medivoice-chip" onclick="sendQuickChip('Which patients missed a dose today?')">🚨 Missed Doses Today</button>
+      <button type="button" class="medivoice-chip" onclick="sendQuickChip('Show this patient\'s adherence for the last seven days')">📈 7-Day Adherence</button>
+      <button type="button" class="medivoice-chip" onclick="sendQuickChip('Which medicines have pending scheduled doses?')">⏳ Pending Doses</button>
+      <button type="button" class="medivoice-chip" onclick="sendQuickChip('Summarize this patient\'s recent missed doses')">📋 Missed Summary</button>
+    </div>
+
+    <!-- Live Speech Recognition Preview -->
+    <div class="medivoice-live-preview" id="medivoiceLivePreview">
+      Listening...
+    </div>
+
+    <!-- Controls Bar -->
+    <div class="medivoice-controls">
+      <button type="button" class="medivoice-mic-btn" id="medivoiceMicBtn" onclick="toggleListening()" title="Start/Stop Voice Recording">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/>
+        </svg>
+      </button>
+
+      <input type="text" class="medivoice-text-input" id="medivoiceInput" placeholder="Ask MediVoice about patient adherence...">
+
+      <button type="button" class="medivoice-send-btn" onclick="sendMediVoiceMessage()" title="Send">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <script src="{{ url_for('static', filename='js/script.js') }}"></script>
 </body>
 </html>

@@ -3,6 +3,7 @@ import sqlite3
 from datetime import datetime, date, timedelta
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
+from medivoice import process_medivoice_query
 
 # Initialize Flask application
 app = Flask(__name__)
@@ -34,7 +35,7 @@ def init_db():
         )
     """)
 
-    # 2. medications table
+    # 2. medications table (with optional instructions)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS medications (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -45,9 +46,16 @@ def init_db():
             scheduled_time TEXT NOT NULL,
             start_date TEXT NOT NULL,
             end_date TEXT NOT NULL,
+            instructions TEXT DEFAULT '',
             FOREIGN KEY (patient_id) REFERENCES users(id) ON DELETE CASCADE
         )
     """)
+
+    # Ensure instructions column exists if table was created previously
+    cursor.execute("PRAGMA table_info(medications)")
+    cols = [c["name"] for c in cursor.fetchall()]
+    if "instructions" not in cols:
+        cursor.execute("ALTER TABLE medications ADD COLUMN instructions TEXT DEFAULT ''")
 
     # 3. adherence table
     cursor.execute("""
@@ -74,6 +82,19 @@ def init_db():
             created_at TEXT NOT NULL,
             FOREIGN KEY (patient_id) REFERENCES users(id) ON DELETE CASCADE,
             FOREIGN KEY (medication_id) REFERENCES medications(id) ON DELETE SET NULL
+        )
+    """)
+
+    # 5. caregiver_patients table (Caregiver Authorization Mapping)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS caregiver_patients (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            caregiver_id INTEGER NOT NULL,
+            patient_id INTEGER NOT NULL,
+            assigned_at TEXT NOT NULL,
+            FOREIGN KEY (caregiver_id) REFERENCES users(id) ON DELETE CASCADE,
+            FOREIGN KEY (patient_id) REFERENCES users(id) ON DELETE CASCADE,
+            UNIQUE(caregiver_id, patient_id)
         )
     """)
     conn.commit()
@@ -105,7 +126,15 @@ def init_db():
             generate_password_hash("caregiver123"),
             "caregiver"
         ))
+        caregiver_id = cursor.lastrowid
         conn.commit()
+
+        # Seed caregiver authorization link
+        now_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        cursor.execute("""
+            INSERT OR IGNORE INTO caregiver_patients (caregiver_id, patient_id, assigned_at)
+            VALUES (?, ?, ?)
+        """, (caregiver_id, patient_id, now_time))
 
         # Seed initial medications for demonstration
         today = date.today()
@@ -113,24 +142,23 @@ def init_db():
         end_d = (today + timedelta(days=21)).strftime("%Y-%m-%d")
 
         meds = [
-            ("Paracetamol", "500 mg", "Twice Daily", "08:00 AM", start_d, end_d),
-            ("Vitamin D", "1 Tablet", "Once Daily", "01:00 PM", start_d, end_d),
-            ("Calcium", "500 mg", "Once Daily", "08:00 PM", start_d, end_d)
+            ("Paracetamol", "500 mg", "Twice Daily", "08:00 AM", start_d, end_d, "Take with full glass of water after food"),
+            ("Vitamin D", "1 Tablet", "Once Daily", "01:00 PM", start_d, end_d, "Take with lunch"),
+            ("Calcium", "500 mg", "Once Daily", "08:00 PM", start_d, end_d, "Take after evening meal")
         ]
 
         created_med_ids = []
         for m in meds:
             cursor.execute("""
-                INSERT INTO medications (patient_id, medicine_name, dosage, frequency, scheduled_time, start_date, end_date)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, (patient_id, m[0], m[1], m[2], m[3], m[4], m[5]))
+                INSERT INTO medications (patient_id, medicine_name, dosage, frequency, scheduled_time, start_date, end_date, instructions)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (patient_id, m[0], m[1], m[2], m[3], m[4], m[5], m[6]))
             created_med_ids.append(cursor.lastrowid)
         conn.commit()
 
         # Seed historical 6-day adherence records for meaningful charts
         for day_offset in range(6, 0, -1):
             past_date = (today - timedelta(days=day_offset)).strftime("%Y-%m-%d")
-            # Day history: Paracetamol TAKEN, Vitamin D TAKEN, Calcium TAKEN or MISSED
             cursor.execute("""
                 INSERT INTO adherence (medication_id, scheduled_date, scheduled_time, status, confirmed_at)
                 VALUES (?, ?, ?, ?, ?)
@@ -141,7 +169,6 @@ def init_db():
                 VALUES (?, ?, ?, ?, ?)
             """, (created_med_ids[1], past_date, "01:00 PM", "TAKEN", f"{past_date} 01:03:00"))
 
-            # Alternate past Calcium taken/missed
             past_status = "TAKEN" if day_offset % 2 == 0 else "MISSED"
             conf_time = f"{past_date} 20:12:00" if past_status == "TAKEN" else None
             cursor.execute("""
@@ -151,27 +178,22 @@ def init_db():
 
         # Seed Today's adherence:
         today_str = today.strftime("%Y-%m-%d")
-        now_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-        # Paracetamol -> TAKEN
         cursor.execute("""
             INSERT INTO adherence (medication_id, scheduled_date, scheduled_time, status, confirmed_at)
             VALUES (?, ?, ?, ?, ?)
         """, (created_med_ids[0], today_str, "08:00 AM", "TAKEN", now_time))
 
-        # Vitamin D -> PENDING
         cursor.execute("""
             INSERT INTO adherence (medication_id, scheduled_date, scheduled_time, status, confirmed_at)
             VALUES (?, ?, ?, ?, ?)
         """, (created_med_ids[1], today_str, "01:00 PM", "PENDING", None))
 
-        # Calcium -> PENDING
         cursor.execute("""
             INSERT INTO adherence (medication_id, scheduled_date, scheduled_time, status, confirmed_at)
             VALUES (?, ?, ?, ?, ?)
         """, (created_med_ids[2], today_str, "08:00 PM", "PENDING", None))
 
-        # Seed sample notifications
         cursor.execute("""
             INSERT INTO notifications (patient_id, medication_id, message, type, is_read, created_at)
             VALUES (?, ?, ?, ?, ?, ?)
@@ -197,6 +219,18 @@ def init_db():
         ))
 
         conn.commit()
+    else:
+        # Ensure demo caregiver and patient authorization exists
+        cursor.execute("SELECT id FROM users WHERE email = 'caregiver@test.com'")
+        cg = cursor.fetchone()
+        cursor.execute("SELECT id FROM users WHERE email = 'patient@test.com'")
+        pt = cursor.fetchone()
+        if cg and pt:
+            cursor.execute("""
+                INSERT OR IGNORE INTO caregiver_patients (caregiver_id, patient_id, assigned_at)
+                VALUES (?, ?, ?)
+            """, (cg["id"], pt["id"], datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+            conn.commit()
 
     conn.close()
 
@@ -339,6 +373,18 @@ def signup():
         """, (name, email, generate_password_hash(password), role))
         conn.commit()
         user_id = cursor.lastrowid
+
+        # If caregiver signed up, assign to demo patient by default
+        if role == "caregiver":
+            cursor.execute("SELECT id FROM users WHERE role = 'patient' LIMIT 1")
+            first_pt = cursor.fetchone()
+            if first_pt:
+                cursor.execute("""
+                    INSERT OR IGNORE INTO caregiver_patients (caregiver_id, patient_id, assigned_at)
+                    VALUES (?, ?, ?)
+                """, (user_id, first_pt["id"], datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+                conn.commit()
+
         conn.close()
 
         session["user_id"] = user_id
@@ -359,6 +405,60 @@ def logout():
     session.clear()
     flash("You have been securely logged out.", "info")
     return redirect(url_for("login"))
+
+
+# ==========================================
+# SETTINGS PAGE
+# ==========================================
+
+@app.route("/settings", methods=["GET", "POST"])
+def settings():
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+
+    user_id = session["user_id"]
+    conn = get_db()
+    cursor = conn.cursor()
+
+    if request.method == "POST":
+        action = request.form.get("action")
+
+        if action == "update_profile":
+            name = request.form.get("name", "").strip()
+            if not name:
+                flash("Name cannot be empty.", "error")
+            else:
+                cursor.execute("UPDATE users SET name = ? WHERE id = ?", (name, user_id))
+                conn.commit()
+                session["user_name"] = name
+                flash("Profile name updated successfully!", "success")
+
+        elif action == "change_password":
+            old_password = request.form.get("old_password", "").strip()
+            new_password = request.form.get("new_password", "").strip()
+            confirm_password = request.form.get("confirm_password", "").strip()
+
+            cursor.execute("SELECT password FROM users WHERE id = ?", (user_id,))
+            u = cursor.fetchone()
+
+            if not (old_password and new_password and confirm_password):
+                flash("All password fields are required.", "error")
+            elif not check_password_hash(u["password"], old_password):
+                flash("Current password is incorrect.", "error")
+            elif len(new_password) < 6:
+                flash("New password must be at least 6 characters.", "error")
+            elif new_password != confirm_password:
+                flash("New passwords do not match.", "error")
+            else:
+                cursor.execute("UPDATE users SET password = ? WHERE id = ?", (generate_password_hash(new_password), user_id))
+                conn.commit()
+                flash("Password changed successfully!", "success")
+
+    cursor.execute("SELECT * FROM users WHERE id = ?", (user_id,))
+    user = cursor.fetchone()
+    conn.close()
+
+    return render_template("settings.html", user=user, user_name=session.get("user_name"), role=session.get("role"))
 
 
 # ==========================================
@@ -391,6 +491,7 @@ def patient_dashboard():
             m.scheduled_time,
             m.start_date,
             m.end_date,
+            m.instructions,
             COALESCE(a.id, 0) as adherence_id,
             COALESCE(a.status, 'PENDING') as status,
             a.confirmed_at
@@ -454,10 +555,11 @@ def add_medication():
         scheduled_time = request.form.get("scheduled_time", "").strip()
         start_date = request.form.get("start_date", "").strip()
         end_date = request.form.get("end_date", "").strip()
+        instructions = request.form.get("instructions", "").strip()
 
         # Validation
         if not (medicine_name and dosage and frequency and scheduled_time and start_date and end_date):
-            flash("All fields are required. Please fill out the form completely.", "error")
+            flash("All required fields must be filled out completely.", "error")
             return render_template("add_medicine.html", form_data=request.form)
 
         if start_date > end_date:
@@ -467,9 +569,9 @@ def add_medication():
         conn = get_db()
         cursor = conn.cursor()
         cursor.execute("""
-            INSERT INTO medications (patient_id, medicine_name, dosage, frequency, scheduled_time, start_date, end_date)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        """, (patient_id, medicine_name, dosage, frequency, scheduled_time, start_date, end_date))
+            INSERT INTO medications (patient_id, medicine_name, dosage, frequency, scheduled_time, start_date, end_date, instructions)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (patient_id, medicine_name, dosage, frequency, scheduled_time, start_date, end_date, instructions))
         new_med_id = cursor.lastrowid
 
         # If medication is active today, create today's adherence record
@@ -527,10 +629,11 @@ def edit_medication(med_id):
         scheduled_time = request.form.get("scheduled_time", "").strip()
         start_date = request.form.get("start_date", "").strip()
         end_date = request.form.get("end_date", "").strip()
+        instructions = request.form.get("instructions", "").strip()
 
         if not (medicine_name and dosage and frequency and scheduled_time and start_date and end_date):
             conn.close()
-            flash("All fields are required.", "error")
+            flash("All required fields must be filled out.", "error")
             return render_template("add_medicine.html", medication=medication, is_edit=True)
 
         if start_date > end_date:
@@ -540,9 +643,9 @@ def edit_medication(med_id):
 
         cursor.execute("""
             UPDATE medications
-            SET medicine_name = ?, dosage = ?, frequency = ?, scheduled_time = ?, start_date = ?, end_date = ?
+            SET medicine_name = ?, dosage = ?, frequency = ?, scheduled_time = ?, start_date = ?, end_date = ?, instructions = ?
             WHERE id = ? AND patient_id = ?
-        """, (medicine_name, dosage, frequency, scheduled_time, start_date, end_date, med_id, patient_id))
+        """, (medicine_name, dosage, frequency, scheduled_time, start_date, end_date, instructions, med_id, patient_id))
 
         conn.commit()
         conn.close()
@@ -590,7 +693,7 @@ def delete_medication(med_id):
 def test_reminder(med_id):
     """
     DEMO FEATURE: Immediately triggers a reminder response for the chosen medication
-    so the user does not need to wait during their 5-minute college presentation.
+    so the user does not need to wait during their college presentation.
     """
     if "user_id" not in session:
         return jsonify({"success": False, "message": "Unauthorized"}), 401
@@ -603,6 +706,11 @@ def test_reminder(med_id):
     if not med:
         conn.close()
         return jsonify({"success": False, "message": "Medication not found"}), 404
+
+    # Authorization guard: Ensure medication belongs to current patient
+    if session.get("role") == "patient" and med["patient_id"] != session["user_id"]:
+        conn.close()
+        return jsonify({"success": False, "message": "Unauthorized access to medication."}), 403
 
     # Get or create today's adherence record
     today_str = date.today().strftime("%Y-%m-%d")
@@ -634,6 +742,7 @@ def test_reminder(med_id):
             "medicine_name": med["medicine_name"],
             "dosage": med["dosage"],
             "scheduled_time": med["scheduled_time"],
+            "instructions": med["instructions"] or "",
             "current_status": current_status
         }
     })
@@ -644,6 +753,7 @@ def confirm_adherence():
     """
     Patient clicks TAKEN or MISSED:
     Updates adherence table status and timestamp.
+    Prevents duplicate confirmations when dose is already recorded.
     If MISSED, generates a MISSED_DOSE alert for the caregiver.
     """
     if "user_id" not in session:
@@ -678,7 +788,25 @@ def confirm_adherence():
     else:
         adh = None
 
-    if not adh and medication_id:
+    if adh:
+        # Check duplicate confirmation prevention
+        if adh["status"] == new_status:
+            conn.close()
+            return jsonify({
+                "success": True,
+                "already_confirmed": True,
+                "status": new_status,
+                "message": f"This dose was already confirmed as {new_status} at {adh['confirmed_at'] or 'earlier'}."
+            })
+
+        adh_id = adh["id"]
+        medication_id = adh["medication_id"]
+        cursor.execute("""
+            UPDATE adherence
+            SET status = ?, confirmed_at = ?
+            WHERE id = ?
+        """, (new_status, now_time, adh_id))
+    elif medication_id:
         cursor.execute("SELECT * FROM medications WHERE id = ?", (medication_id,))
         med = cursor.fetchone()
         if med:
@@ -690,14 +818,6 @@ def confirm_adherence():
         else:
             conn.close()
             return jsonify({"success": False, "message": "Medication record not found"}), 404
-    elif adh:
-        adh_id = adh["id"]
-        medication_id = adh["medication_id"]
-        cursor.execute("""
-            UPDATE adherence
-            SET status = ?, confirmed_at = ?
-            WHERE id = ?
-        """, (new_status, now_time, adh_id))
     else:
         conn.close()
         return jsonify({"success": False, "message": "Invalid medication or adherence ID"}), 400
@@ -730,11 +850,45 @@ def confirm_adherence():
 
     return jsonify({
         "success": True,
+        "already_confirmed": False,
         "status": new_status,
         "confirmed_at": now_time,
         "adherence_id": adh_id,
         "stats": updated_stats,
         "message": f"Dose successfully recorded as {new_status}!"
+    })
+
+
+# ==========================================
+# MEDIVOICE CONVERSATIONAL AI ENDPOINT
+# ==========================================
+
+@app.route("/api/medivoice/chat", methods=["POST"])
+def medivoice_chat():
+    """
+    Conversational AI endpoint for MediVoice.
+    Handles voice and typed text queries, grounded in actual database records.
+    """
+    if "user_id" not in session:
+        return jsonify({"success": False, "reply": "Please log in to speak with MediVoice."}), 401
+
+    data = request.get_json() or {}
+    user_text = data.get("message", "").strip()
+    target_patient_id = data.get("target_patient_id")
+
+    conn = get_db()
+    result = process_medivoice_query(
+        user_text=user_text,
+        user_id=session["user_id"],
+        user_role=session.get("role", "patient"),
+        db_conn=conn,
+        target_patient_id=target_patient_id
+    )
+    conn.close()
+
+    return jsonify({
+        "success": True,
+        **result
     })
 
 
@@ -747,21 +901,56 @@ def caregiver_dashboard():
     if "user_id" not in session:
         return redirect(url_for("login"))
 
-    # Caregiver can view all patients or default patient
+    caregiver_id = session["user_id"]
     conn = get_db()
     cursor = conn.cursor()
 
-    # Get primary patient
-    cursor.execute("SELECT * FROM users WHERE role = 'patient' LIMIT 1")
-    patient = cursor.fetchone()
+    # Retrieve all patients explicitly authorized for this caregiver
+    cursor.execute("""
+        SELECT u.id, u.name, u.email
+        FROM caregiver_patients cp
+        JOIN users u ON cp.patient_id = u.id
+        WHERE cp.caregiver_id = ?
+        ORDER BY u.name ASC
+    """, (caregiver_id,))
+    authorized_patients = cursor.fetchall()
 
-    if not patient:
+    if not authorized_patients:
         conn.close()
-        return "No patient enrolled in the system.", 404
+        return render_template(
+            "caregiver.html",
+            user_name=session.get("user_name"),
+            patient=None,
+            authorized_patients=[],
+            patient_meds=[],
+            missed_alerts=[],
+            recent_history=[],
+            stats={"percentage": 0, "total": 0, "taken": 0, "missed": 0, "pending": 0},
+            today_date=date.today().strftime("%A, %B %d, %Y")
+        )
+
+    # Determine selected patient from authorized list
+    req_patient_id = request.args.get("patient_id")
+    if req_patient_id:
+        try:
+            req_id = int(req_patient_id)
+            # Authorization guard: Verify patient is authorized for this caregiver
+            if not any(p["id"] == req_id for p in authorized_patients):
+                conn.close()
+                return "403 Forbidden: You are not authorized to view this patient's records.", 403
+            patient = [p for p in authorized_patients if p["id"] == req_id][0]
+        except ValueError:
+            patient = authorized_patients[0]
+    else:
+        patient = authorized_patients[0]
 
     patient_id = patient["id"]
     ensure_today_adherence_records(patient_id)
     today_str = date.today().strftime("%Y-%m-%d")
+
+    # Date filter for history: today, week, month, all
+    history_filter = request.args.get("filter", "all")
+    today = date.today()
 
     # Today's medicines for patient
     cursor.execute("""
@@ -770,6 +959,7 @@ def caregiver_dashboard():
             m.medicine_name,
             m.dosage,
             m.scheduled_time,
+            m.instructions,
             COALESCE(a.status, 'PENDING') as status,
             a.confirmed_at
         FROM medications m
@@ -781,7 +971,7 @@ def caregiver_dashboard():
     """, (today_str, patient_id, today_str, today_str))
     patient_meds = cursor.fetchall()
 
-    # Missed Medication Alerts
+    # Missed Medication Alerts for authorized patients
     cursor.execute("""
         SELECT 
             n.id,
@@ -794,14 +984,14 @@ def caregiver_dashboard():
         FROM notifications n
         JOIN users u ON n.patient_id = u.id
         LEFT JOIN medications m ON n.medication_id = m.id
-        WHERE n.type = 'MISSED_DOSE'
+        WHERE n.type = 'MISSED_DOSE' AND n.patient_id = ?
         ORDER BY n.created_at DESC
         LIMIT 10
-    """)
+    """, (patient_id,))
     missed_alerts = cursor.fetchall()
 
-    # Recent adherence history (last 10)
-    cursor.execute("""
+    # Adherence history with period filter
+    hist_query = """
         SELECT 
             a.scheduled_date,
             a.scheduled_time,
@@ -812,9 +1002,22 @@ def caregiver_dashboard():
         FROM adherence a
         JOIN medications m ON a.medication_id = m.id
         WHERE m.patient_id = ?
-        ORDER BY a.scheduled_date DESC, a.scheduled_time DESC
-        LIMIT 10
-    """, (patient_id,))
+    """
+    hist_params = [patient_id]
+    if history_filter == "today":
+        hist_query += " AND a.scheduled_date = ?"
+        hist_params.append(today_str)
+    elif history_filter == "week":
+        week_ago = (today - timedelta(days=7)).strftime("%Y-%m-%d")
+        hist_query += " AND a.scheduled_date >= ?"
+        hist_params.append(week_ago)
+    elif history_filter == "month":
+        month_ago = (today - timedelta(days=30)).strftime("%Y-%m-%d")
+        hist_query += " AND a.scheduled_date >= ?"
+        hist_params.append(month_ago)
+
+    hist_query += " ORDER BY a.scheduled_date DESC, a.scheduled_time DESC LIMIT 15"
+    cursor.execute(hist_query, hist_params)
     recent_history = cursor.fetchall()
 
     conn.close()
@@ -825,9 +1028,11 @@ def caregiver_dashboard():
         "caregiver.html",
         user_name=session.get("user_name"),
         patient=patient,
+        authorized_patients=authorized_patients,
         patient_meds=patient_meds,
         missed_alerts=missed_alerts,
         recent_history=recent_history,
+        history_filter=history_filter,
         stats=stats,
         today_date=date.today().strftime("%A, %B %d, %Y")
     )
@@ -843,11 +1048,16 @@ def get_notifications():
     cursor = conn.cursor()
 
     if session.get("role") == "caregiver":
+        # Get notifications for authorized patients only
         cursor.execute("""
-            SELECT * FROM notifications
-            ORDER BY created_at DESC
+            SELECT n.*, u.name as patient_name
+            FROM notifications n
+            JOIN users u ON n.patient_id = u.id
+            JOIN caregiver_patients cp ON n.patient_id = cp.patient_id
+            WHERE cp.caregiver_id = ?
+            ORDER BY n.created_at DESC
             LIMIT 20
-        """)
+        """, (user_id,))
     else:
         cursor.execute("""
             SELECT * FROM notifications
@@ -878,6 +1088,26 @@ def mark_notification_read(notif_id):
     return jsonify({"success": True})
 
 
+@app.route("/notifications/clear", methods=["POST"])
+def clear_all_notifications():
+    if "user_id" not in session:
+        return jsonify({"success": False}), 401
+
+    conn = get_db()
+    cursor = conn.cursor()
+    if session.get("role") == "caregiver":
+        cursor.execute("""
+            UPDATE notifications
+            SET is_read = 1
+            WHERE patient_id IN (SELECT patient_id FROM caregiver_patients WHERE caregiver_id = ?)
+        """, (session["user_id"],))
+    else:
+        cursor.execute("UPDATE notifications SET is_read = 1 WHERE patient_id = ?", (session["user_id"],))
+    conn.commit()
+    conn.close()
+    return jsonify({"success": True})
+
+
 # ==========================================
 # HISTORY & ANALYTICS
 # ==========================================
@@ -887,24 +1117,40 @@ def history():
     if "user_id" not in session:
         return redirect(url_for("login"))
 
-    # Determine patient ID
+    conn = get_db()
+    cursor = conn.cursor()
+
+    # Determine patient ID with authorization check
     if session.get("role") == "caregiver":
-        conn = get_db()
-        cursor = conn.cursor()
-        cursor.execute("SELECT id, name FROM users WHERE role = 'patient' LIMIT 1")
-        p = cursor.fetchone()
-        conn.close()
-        patient_id = p["id"] if p else 1
-        patient_name = p["name"] if p else "Demo Patient"
+        req_p = request.args.get("patient_id")
+        cursor.execute("""
+            SELECT u.id, u.name
+            FROM caregiver_patients cp
+            JOIN users u ON cp.patient_id = u.id
+            WHERE cp.caregiver_id = ?
+        """, (session["user_id"],))
+        auth_pts = cursor.fetchall()
+
+        if not auth_pts:
+            conn.close()
+            return "No authorized patients assigned to your account.", 403
+
+        if req_p:
+            match = [p for p in auth_pts if p["id"] == int(req_p)]
+            if not match:
+                conn.close()
+                return "403 Forbidden: You are not authorized to view this patient.", 403
+            patient_id = match[0]["id"]
+            patient_name = match[0]["name"]
+        else:
+            patient_id = auth_pts[0]["id"]
+            patient_name = auth_pts[0]["name"]
     else:
         patient_id = session["user_id"]
         patient_name = session.get("user_name")
 
     filter_period = request.args.get("filter", "all")  # today, week, month, all
     today = date.today()
-
-    conn = get_db()
-    cursor = conn.cursor()
 
     query = """
         SELECT 
@@ -915,7 +1161,8 @@ def history():
             a.confirmed_at,
             m.medicine_name,
             m.dosage,
-            m.frequency
+            m.frequency,
+            m.instructions
         FROM adherence a
         JOIN medications m ON a.medication_id = m.id
         WHERE m.patient_id = ?
@@ -958,19 +1205,28 @@ def analytics_api():
     if "user_id" not in session:
         return jsonify({"error": "Unauthorized"}), 401
 
+    conn = get_db()
+    cursor = conn.cursor()
+
     if session.get("role") == "caregiver":
-        conn = get_db()
-        cursor = conn.cursor()
-        cursor.execute("SELECT id FROM users WHERE role = 'patient' LIMIT 1")
-        p = cursor.fetchone()
-        conn.close()
-        patient_id = p["id"] if p else 1
+        req_p = request.args.get("patient_id")
+        cursor.execute("""
+            SELECT patient_id FROM caregiver_patients WHERE caregiver_id = ?
+        """, (session["user_id"],))
+        auth_pts = [r["patient_id"] for r in cursor.fetchall()]
+
+        if not auth_pts:
+            conn.close()
+            return jsonify({"error": "No authorized patients."}), 403
+
+        if req_p and int(req_p) in auth_pts:
+            patient_id = int(req_p)
+        else:
+            patient_id = auth_pts[0]
     else:
         patient_id = session["user_id"]
 
     today = date.today()
-    conn = get_db()
-    cursor = conn.cursor()
 
     # 1. Weekly adherence chart data (last 7 days)
     days_labels = []
@@ -979,7 +1235,7 @@ def analytics_api():
     for i in range(6, -1, -1):
         target_day = today - timedelta(days=i)
         day_str = target_day.strftime("%Y-%m-%d")
-        day_name = target_day.strftime("%a")  # e.g. Mon, Tue
+        day_name = target_day.strftime("%a")
 
         cursor.execute("""
             SELECT 

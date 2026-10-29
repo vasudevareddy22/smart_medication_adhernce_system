@@ -143,6 +143,16 @@
           </div>
         </div>
 
+        <!-- Optional Doctor Instructions -->
+        <div class="form-group">
+          <label class="form-label" for="instructions">Instructions / Notes (Optional)</label>
+          <div class="input-container">
+            <input type="text" id="instructions" name="instructions" class="auth-input no-left-icon" 
+                   placeholder="e.g. Take with food, drink full glass of water, do not take before bed" 
+                   value="{{ medication.instructions if medication else (form_data.instructions if form_data else '') }}">
+          </div>
+        </div>
+
         <!-- Action Buttons -->
         <div style="display:flex; justify-content:flex-end; gap:12px; margin-top:16px;">
           <a href="{{ url_for('patient_dashboard') }}" class="btn-secondary">Cancel</a>

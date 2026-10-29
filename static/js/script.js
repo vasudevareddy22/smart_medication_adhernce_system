@@ -270,3 +270,291 @@ async function loadAnalyticsCharts() {
     console.error('Error loading analytics charts:', err);
   }
 }
+
+/* ==========================================================================
+   MEDIVOICE AI VOICE ASSISTANT CONTROLLER
+   ========================================================================== */
+
+let recognition = null;
+let isListening = false;
+let isSpeaking = false;
+
+document.addEventListener('DOMContentLoaded', () => {
+  initSpeechRecognition();
+  
+  // Enter key support for MediVoice text input
+  const textInput = document.getElementById('medivoiceInput');
+  if (textInput) {
+    textInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        sendMediVoiceMessage();
+      }
+    });
+  }
+});
+
+/**
+ * Initialize Web Speech API SpeechRecognition
+ */
+function initSpeechRecognition() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    console.warn('Web Speech Recognition API is not supported in this browser. Fallback to typed chat.');
+    return;
+  }
+
+  recognition = new SpeechRecognition();
+  recognition.continuous = false;
+  recognition.interimResults = true;
+  recognition.lang = 'en-US';
+
+  recognition.onstart = () => {
+    isListening = true;
+    updateMediVoiceStatus('listening', 'Listening to you...');
+    const micBtn = document.getElementById('medivoiceMicBtn');
+    if (micBtn) micBtn.classList.add('listening');
+    const preview = document.getElementById('medivoiceLivePreview');
+    if (preview) {
+      preview.textContent = 'Listening... Speak clearly';
+      preview.classList.add('active');
+    }
+  };
+
+  recognition.onresult = (event) => {
+    let interimTranscript = '';
+    let finalTranscript = '';
+
+    for (let i = event.resultIndex; i < event.results.length; ++i) {
+      if (event.results[i].isFinal) {
+        finalTranscript += event.results[i][0].transcript;
+      } else {
+        interimTranscript += event.results[i][0].transcript;
+      }
+    }
+
+    const preview = document.getElementById('medivoiceLivePreview');
+    if (preview) {
+      preview.textContent = interimTranscript || finalTranscript;
+      preview.classList.add('active');
+    }
+
+    if (finalTranscript) {
+      appendMediVoiceMessage('user', finalTranscript);
+      processMediVoiceBackend(finalTranscript);
+    }
+  };
+
+  recognition.onerror = (event) => {
+    console.error('Speech recognition error:', event.error);
+    isListening = false;
+    const micBtn = document.getElementById('medivoiceMicBtn');
+    if (micBtn) micBtn.classList.remove('listening');
+
+    let msg = 'Voice recognition error.';
+    if (event.error === 'not-allowed') {
+      msg = 'Microphone permission denied. You can type your question in the text box below.';
+    } else if (event.error === 'no-speech') {
+      msg = 'No speech detected. Please click the mic and try again, or type below.';
+    }
+    updateMediVoiceStatus('idle', 'Online • Ready');
+    appendMediVoiceMessage('assistant', `⚠️ ${msg}`);
+  };
+
+  recognition.onend = () => {
+    isListening = false;
+    const micBtn = document.getElementById('medivoiceMicBtn');
+    if (micBtn) micBtn.classList.remove('listening');
+    const preview = document.getElementById('medivoiceLivePreview');
+    if (preview) preview.classList.remove('active');
+    if (!isSpeaking) {
+      updateMediVoiceStatus('idle', 'Online • Ready');
+    }
+  };
+}
+
+/**
+ * Toggle MediVoice Drawer
+ */
+function toggleMediVoice() {
+  const drawer = document.getElementById('medivoiceDrawer');
+  if (!drawer) return;
+  drawer.classList.toggle('active');
+
+  // Cancel speech synthesis if closing
+  if (!drawer.classList.contains('active')) {
+    stopSpeaking();
+  }
+}
+
+/**
+ * Trigger voice listening
+ */
+function toggleListening() {
+  if (!recognition) {
+    alert('Speech recognition is not supported in this browser. Please use the text input below to chat with MediVoice.');
+    return;
+  }
+
+  // If assistant is currently speaking, stop it first
+  stopSpeaking();
+
+  if (isListening) {
+    recognition.stop();
+  } else {
+    try {
+      recognition.start();
+    } catch (err) {
+      console.warn('Recognition start error:', err);
+    }
+  }
+}
+
+/**
+ * Send typed message
+ */
+function sendMediVoiceMessage() {
+  const input = document.getElementById('medivoiceInput');
+  if (!input) return;
+  const text = input.value.trim();
+  if (!text) return;
+
+  input.value = '';
+  appendMediVoiceMessage('user', text);
+  processMediVoiceBackend(text);
+}
+
+/**
+ * Send Quick Chip prompt
+ */
+function sendQuickChip(promptText) {
+  appendMediVoiceMessage('user', promptText);
+  processMediVoiceBackend(promptText);
+}
+
+/**
+ * Call Flask backend endpoint: POST /api/medivoice/chat
+ */
+async function processMediVoiceBackend(messageText) {
+  updateMediVoiceStatus('thinking', 'Processing query...');
+
+  try {
+    // Check if target patient ID is present (e.g., on Caregiver dashboard)
+    const patientSelect = document.getElementById('caregiverPatientSelect');
+    const targetPatientId = patientSelect ? patientSelect.value : null;
+
+    const response = await fetch('/api/medivoice/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message: messageText,
+        target_patient_id: targetPatientId
+      })
+    });
+
+    const data = await response.json();
+    if (data.success && data.reply) {
+      appendMediVoiceMessage('assistant', data.reply);
+      speakText(data.reply);
+
+      // Handle safe actions
+      if (data.action) {
+        if (data.action.type === 'navigate' && data.action.url) {
+          setTimeout(() => { window.location.href = data.action.url; }, 2000);
+        } else if (data.action.type === 'refresh_dashboard') {
+          setTimeout(() => { window.location.reload(); }, 2200);
+        }
+      }
+    } else {
+      appendMediVoiceMessage('assistant', data.reply || 'Sorry, I encountered an issue processing your request.');
+      updateMediVoiceStatus('idle', 'Online • Ready');
+    }
+  } catch (err) {
+    console.error('MediVoice backend error:', err);
+    appendMediVoiceMessage('assistant', '⚠️ Unable to reach MediVoice service. Please check your connection.');
+    updateMediVoiceStatus('idle', 'Online • Ready');
+  }
+}
+
+/**
+ * Speak assistant text aloud using SpeechSynthesis API
+ */
+function speakText(text) {
+  const isMuted = localStorage.getItem('medivoice_mute') === 'true';
+  if (isMuted || !('speechSynthesis' in window)) {
+    updateMediVoiceStatus('idle', 'Online • Ready');
+    return;
+  }
+
+  window.speechSynthesis.cancel(); // Stop any pending speech
+
+  const cleanText = text.replace(/[*_#`~🚨⚠️✓✕]/g, '');
+  const utterance = new SpeechSynthesisUtterance(cleanText);
+  utterance.lang = 'en-US';
+  utterance.rate = parseFloat(localStorage.getItem('medivoice_rate') || '1.0');
+
+  utterance.onstart = () => {
+    isSpeaking = true;
+    updateMediVoiceStatus('speaking', 'Speaking...');
+    const stopBtn = document.getElementById('medivoiceStopBtn');
+    if (stopBtn) stopBtn.classList.add('active');
+  };
+
+  utterance.onend = () => {
+    isSpeaking = false;
+    updateMediVoiceStatus('idle', 'Online • Ready');
+    const stopBtn = document.getElementById('medivoiceStopBtn');
+    if (stopBtn) stopBtn.classList.remove('active');
+  };
+
+  utterance.onerror = () => {
+    isSpeaking = false;
+    updateMediVoiceStatus('idle', 'Online • Ready');
+    const stopBtn = document.getElementById('medivoiceStopBtn');
+    if (stopBtn) stopBtn.classList.remove('active');
+  };
+
+  window.speechSynthesis.speak(utterance);
+}
+
+/**
+ * Stop Speaking immediately
+ */
+function stopSpeaking() {
+  if ('speechSynthesis' in window) {
+    window.speechSynthesis.cancel();
+  }
+  isSpeaking = false;
+  const stopBtn = document.getElementById('medivoiceStopBtn');
+  if (stopBtn) stopBtn.classList.remove('active');
+  updateMediVoiceStatus('idle', 'Online • Ready');
+}
+
+/**
+ * Append message bubble to chat window
+ */
+function appendMediVoiceMessage(sender, text) {
+  const messagesBox = document.getElementById('medivoiceMessages');
+  if (!messagesBox) return;
+
+  const msgDiv = document.createElement('div');
+  msgDiv.className = `medivoice-msg ${sender}`;
+  msgDiv.textContent = text;
+  messagesBox.appendChild(msgDiv);
+  messagesBox.scrollTop = messagesBox.scrollHeight;
+}
+
+/**
+ * Update Status indicator dot and text
+ */
+function updateMediVoiceStatus(state, text) {
+  const dot = document.getElementById('medivoiceStatusDot');
+  const sub = document.getElementById('medivoiceStatusText');
+
+  if (dot) {
+    dot.className = `medivoice-status-dot ${state}`;
+  }
+  if (sub) {
+    sub.textContent = text;
+  }
+}
