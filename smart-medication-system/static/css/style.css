@@ -1717,3 +1717,98 @@ body {
 .medivoice-stop-btn.active {
   display: inline-flex;
 }
+
+/* Additional Multilingual & Interactive Controls for MediVoice */
+.medivoice-btn-labels {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.1;
+}
+
+.medivoice-btn-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.medivoice-btn-sub {
+  font-size: 0.65rem;
+  font-weight: 500;
+  opacity: 0.85;
+}
+
+.medivoice-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.medivoice-lang-dropdown {
+  background: #14233D;
+  border: 1px solid #20355A;
+  color: var(--cyan-accent);
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 4px 6px;
+  border-radius: 4px;
+  outline: none;
+  cursor: pointer;
+  max-width: 125px;
+}
+
+.medivoice-lang-dropdown:focus {
+  border-color: var(--cyan-accent);
+}
+
+.medivoice-icon-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.medivoice-icon-btn:hover {
+  color: var(--cyan-accent);
+  background: #1E2E4A;
+}
+
+.medivoice-msg-wrapper {
+  display: flex;
+  flex-direction: column;
+  max-width: 85%;
+}
+
+.medivoice-msg-wrapper.assistant {
+  align-self: flex-start;
+}
+
+.medivoice-msg-wrapper.user {
+  align-self: flex-end;
+}
+
+.medivoice-replay-btn {
+  background: rgba(0, 242, 254, 0.08);
+  border: 1px solid rgba(0, 242, 254, 0.2);
+  color: var(--cyan-accent);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 0.68rem;
+  cursor: pointer;
+  margin-top: 4px;
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.2s ease;
+}
+
+.medivoice-replay-btn:hover {
+  background: rgba(0, 242, 254, 0.2);
+}
+

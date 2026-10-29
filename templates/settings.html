@@ -171,6 +171,18 @@
         </div>
 
         <div class="form-group">
+          <label class="form-label" for="voiceLangPreference">Default Interaction Language</label>
+          <div class="input-container">
+            <select id="voiceLangPreference" class="auth-input no-left-icon" onchange="saveVoiceLang(this.value)">
+              <option value="en-IN">English (en-IN)</option>
+              <option value="hi-IN">हिन्दी / Hindi (hi-IN)</option>
+              <option value="te-IN">తెలుగు / Telugu (te-IN)</option>
+              <option value="ta-IN">தமிழ் / Tamil (ta-IN)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
           <label class="form-label">Voice Speech Rate</label>
           <div style="display:flex; align-items:center; gap:16px;">
             <input type="range" id="voiceRateSlider" min="0.75" max="1.5" step="0.25" value="1.0" 
@@ -189,6 +201,10 @@
 
   </main>
 
+  <!-- MediVoice Assistant Widget Partial -->
+  {% include 'medivoice_widget.html' %}
+
+  <script src="{{ url_for('static', filename='js/script.js') }}"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       const isMuted = localStorage.getItem('medivoice_mute') === 'true';
@@ -202,16 +218,28 @@
         slider.value = rate;
         display.textContent = `${rate}x`;
       }
+
+      const lang = localStorage.getItem('medivoice_lang') || 'en-IN';
+      const langSel = document.getElementById('voiceLangPreference');
+      if (langSel) langSel.value = lang;
     });
 
     function toggleVoiceMute(checked) {
       localStorage.setItem('medivoice_mute', checked ? 'true' : 'false');
+      if (typeof window.syncSpeakerIcon === 'function') window.syncSpeakerIcon();
     }
 
     function saveVoiceRate(val) {
       localStorage.setItem('medivoice_rate', val);
       const display = document.getElementById('voiceRateDisplay');
       if (display) display.textContent = `${val}x`;
+    }
+
+    function saveVoiceLang(val) {
+      localStorage.setItem('medivoice_lang', val);
+      if (typeof window.onMediVoiceLanguageChange === 'function') {
+        window.onMediVoiceLanguageChange(val);
+      }
     }
   </script>
 </body>

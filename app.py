@@ -875,6 +875,7 @@ def medivoice_chat():
     data = request.get_json() or {}
     user_text = data.get("message", "").strip()
     target_patient_id = data.get("target_patient_id")
+    requested_lang = data.get("language")
 
     conn = get_db()
     result = process_medivoice_query(
@@ -882,12 +883,14 @@ def medivoice_chat():
         user_id=session["user_id"],
         user_role=session.get("role", "patient"),
         db_conn=conn,
-        target_patient_id=target_patient_id
+        target_patient_id=target_patient_id,
+        requested_lang=requested_lang
     )
     conn.close()
 
     return jsonify({
         "success": True,
+        "language": result.get("lang"),
         **result
     })
 

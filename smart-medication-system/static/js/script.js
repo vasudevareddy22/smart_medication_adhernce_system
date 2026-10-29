@@ -272,16 +272,43 @@ async function loadAnalyticsCharts() {
 }
 
 /* ==========================================================================
-   MEDIVOICE AI VOICE ASSISTANT CONTROLLER
+   MEDIVOICE MULTILINGUAL AI VOICE ASSISTANT CONTROLLER
+   Supports English (en-IN), Hindi (hi-IN), Telugu (te-IN), Tamil (ta-IN)
    ========================================================================== */
 
 let recognition = null;
 let isListening = false;
 let isSpeaking = false;
+let currentLang = localStorage.getItem('medivoice_lang') || 'en-IN';
+let availableVoices = [];
+
+// Cache system voices when loaded
+if ('speechSynthesis' in window) {
+  availableVoices = window.speechSynthesis.getVoices();
+  window.speechSynthesis.onvoiceschanged = () => {
+    availableVoices = window.speechSynthesis.getVoices();
+  };
+}
 
 document.addEventListener('DOMContentLoaded', () => {
+  // Initialize current language dropdowns
+  const langSelect = document.getElementById('medivoiceLangSelect');
+  if (langSelect) {
+    langSelect.value = currentLang;
+  }
+
+  // Sync speaker toggle icon
+  syncSpeakerIcon();
+
+  // Render localized quick prompt chips
+  renderQuickPromptChips();
+
+  // Load chat history from sessionStorage
+  restoreMediVoiceChatHistory();
+
+  // Initialize Speech Recognition
   initSpeechRecognition();
-  
+
   // Enter key support for MediVoice text input
   const textInput = document.getElementById('medivoiceInput');
   if (textInput) {
@@ -295,7 +322,117 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 /**
- * Initialize Web Speech API SpeechRecognition
+ * Handle explicit language change from dropdown or settings
+ */
+function onMediVoiceLanguageChange(newLang) {
+  if (!newLang) return;
+  currentLang = newLang;
+  localStorage.setItem('medivoice_lang', newLang);
+
+  const langSelect = document.getElementById('medivoiceLangSelect');
+  if (langSelect && langSelect.value !== newLang) {
+    langSelect.value = newLang;
+  }
+  const settingsSelect = document.getElementById('voiceLangPreference');
+  if (settingsSelect && settingsSelect.value !== newLang) {
+    settingsSelect.value = newLang;
+  }
+
+  // Update speech recognition language
+  if (recognition) {
+    recognition.lang = currentLang;
+  }
+
+  // Update quick prompt chips to match new language
+  renderQuickPromptChips();
+
+  // Update placeholder
+  const input = document.getElementById('medivoiceInput');
+  if (input) {
+    const placeholders = {
+      'en-IN': 'Speak or type a question in English...',
+      'hi-IN': 'हिन्दी में बोलें या टाइप करें...',
+      'te-IN': 'తెలుగులో మాట్లాడండి లేదా టైప్ చేయండి...',
+      'ta-IN': 'தமிழில் பேசவும் அல்லது தட்டச்சு செய்யவும்...'
+    };
+    input.placeholder = placeholders[newLang] || 'Speak or type a question...';
+  }
+}
+
+/**
+ * Render dynamic quick prompt chips according to current language and user role
+ */
+function renderQuickPromptChips() {
+  const container = document.getElementById('medivoiceQuickPrompts');
+  if (!container) return;
+
+  const isCaregiver = window.location.pathname.includes('/caregiver') || !!document.getElementById('caregiverPatientSelect');
+
+  const prompts = {
+    'en-IN': isCaregiver ? [
+      { label: "🚨 Missed Today", text: "Which patients missed a dose today?" },
+      { label: "📈 7-Day Adherence", text: "Show this patient's adherence for the last seven days" },
+      { label: "⏳ Pending Doses", text: "Which medicines have pending scheduled doses?" },
+      { label: "📋 Missed Summary", text: "Summarize this patient's recent missed doses" }
+    ] : [
+      { label: "💊 Today's Medicines", text: "What medicines do I need to take today?" },
+      { label: "📊 My Adherence", text: "What is my adherence percentage?" },
+      { label: "⚠️ Missed Doses", text: "Have I missed any doses this week?" },
+      { label: "✓ Mark Taken", text: "I took my medicine" },
+      { label: "❓ How to use app", text: "How do I use this system?" }
+    ],
+    'hi-IN': isCaregiver ? [
+      { label: "🚨 आज छूटी दवाएँ", text: "आज किन मरीजों की दवा छूटी है?" },
+      { label: "📈 7 दिन का रिकॉर्ड", text: "पिछले 7 दिनों का अनुपालन रिकॉर्ड दिखाएं" },
+      { label: "⏳ लंबित दवाएँ", text: "किन दवाओं की खुराक अभी बाकी है?" },
+      { label: "📋 छूटी खुराकें", text: "छूटी हुई दवाओं का विवरण दें" }
+    ] : [
+      { label: "💊 आज की दवाइयाँ", text: "आज मुझे कौन सी दवाइयाँ लेनी हैं?" },
+      { label: "📊 अनुपालन प्रतिशत", text: "मेरा अनुपालन प्रतिशत कितना है?" },
+      { label: "⚠️ छूटी खुराकें", text: "क्या मेरी कोई खुराक छूटी है?" },
+      { label: "✓ दवा ले ली", text: "मैंने अपनी दवा ले ली है" },
+      { label: "❓ ऐप का उपयोग", text: "मैं इस ऐप का उपयोग कैसे करूँ?" }
+    ],
+    'te-IN': isCaregiver ? [
+      { label: "🚨 మిస్ అయిన డోస్‌లు", text: "ఈరోజు ఏ పేషెంట్లు మందు మిస్ అయ్యారు?" },
+      { label: "📈 7 రోజుల రిపోర్ట్", text: "గత 7 రోజుల అనుసరణ చూపించండి" },
+      { label: "⏳ పెండింగ్ డోస్‌లు", text: "ఏ మందులు ఇంకా వేసుకోవాల్సి ఉంది?" },
+      { label: "📋 వివరాలు", text: "మిస్ అయిన డోస్‌ల వివరాలు ఇవ్వండి" }
+    ] : [
+      { label: "💊 ఈరోజు మందులు", text: "ఈరోజు నేను ఏ మందులు వేసుకోవాలి?" },
+      { label: "📊 నా అనుసరణ శాతం", text: "నా మందుల అనుసరణ శాతం ఎంత?" },
+      { label: "⚠️ మిస్ అయిన డోస్‌లు", text: "ఈ వారం నేను ఏమైనా మందులు మిస్ అయ్యానా?" },
+      { label: "✓ మందు వేసుకున్నాను", text: "నేను మందు వేసుకున్నాను" },
+      { label: "❓ యాప్ ఎలా వాడాలి", text: "ఈ సిస్టమ్‌ను ఎలా ఉపయోగించాలి?" }
+    ],
+    'ta-IN': isCaregiver ? [
+      { label: "🚨 இன்று தவறவிட்டவர்கள்", text: "இன்று யார் மருந்தை தவறவிட்டார்கள்?" },
+      { label: "📈 7 நாள் அறிக்கை", text: "கடந்த 7 நாட்களின் பின்பற்றுதலைக் காட்டுங்கள்" },
+      { label: "⏳ நிலுவை மருந்துகள்", text: "எந்த மருந்துகள் நிலுவையில் உள்ளன?" },
+      { label: "📋 சுருக்கம்", text: "தவறவிட்ட மருந்துகளின் சுருக்கத்தைக் கொடுங்கள்" }
+    ] : [
+      { label: "💊 இன்றைய மருந்துகள்", text: "இன்று நான் என்ன மருந்துகளை எடுக்க வேண்டும்?" },
+      { label: "📊 பின்பற்றுதல் விகிதம்", text: "எனது மருந்து பின்பற்றுதல் சதவீதம் என்ன?" },
+      { label: "⚠️ தவறவிட்ட மருந்துகள்", text: "நான் ஏதேனும் மருந்துகளை தவறவிட்டேனா?" },
+      { label: "✓ மருந்து எடுத்தேன்", text: "நான் மருந்து எடுத்துக்கொண்டேன்" },
+      { label: "❓ செயலியை பயன்படுத்த", text: "இந்த அமைப்பை எவ்வாறு பயன்படுத்துவது?" }
+    ]
+  };
+
+  const list = prompts[currentLang] || prompts['en-IN'];
+  container.innerHTML = '';
+  list.forEach(item => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'medivoice-chip';
+    btn.textContent = item.label;
+    btn.onclick = () => sendQuickChip(item.text);
+    container.appendChild(btn);
+  });
+}
+
+/**
+ * Initialize Web Speech API SpeechRecognition with Multilingual Support
  */
 function initSpeechRecognition() {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -307,16 +444,16 @@ function initSpeechRecognition() {
   recognition = new SpeechRecognition();
   recognition.continuous = false;
   recognition.interimResults = true;
-  recognition.lang = 'en-US';
+  recognition.lang = currentLang;
 
   recognition.onstart = () => {
     isListening = true;
-    updateMediVoiceStatus('listening', 'Listening to you...');
+    updateMediVoiceStatus('listening', 'Listening in ' + currentLang + '...');
     const micBtn = document.getElementById('medivoiceMicBtn');
     if (micBtn) micBtn.classList.add('listening');
     const preview = document.getElementById('medivoiceLivePreview');
     if (preview) {
-      preview.textContent = 'Listening... Speak clearly';
+      preview.textContent = 'Listening... Speak clearly in your selected language';
       preview.classList.add('active');
     }
   };
@@ -346,16 +483,18 @@ function initSpeechRecognition() {
   };
 
   recognition.onerror = (event) => {
-    console.error('Speech recognition error:', event.error);
+    console.warn('Speech recognition error event:', event.error);
     isListening = false;
     const micBtn = document.getElementById('medivoiceMicBtn');
     if (micBtn) micBtn.classList.remove('listening');
 
     let msg = 'Voice recognition error.';
     if (event.error === 'not-allowed') {
-      msg = 'Microphone permission denied. You can type your question in the text box below.';
+      msg = 'Microphone permission denied. You can enable microphone permissions in your browser or type your question below.';
     } else if (event.error === 'no-speech') {
-      msg = 'No speech detected. Please click the mic and try again, or type below.';
+      msg = 'No speech was detected. Please click the microphone button again or type your message.';
+    } else if (event.error === 'network') {
+      msg = 'Speech recognition network error. Please verify your connection or type your question.';
     }
     updateMediVoiceStatus('idle', 'Online • Ready');
     appendMediVoiceMessage('assistant', `⚠️ ${msg}`);
@@ -384,6 +523,10 @@ function toggleMediVoice() {
   // Cancel speech synthesis if closing
   if (!drawer.classList.contains('active')) {
     stopSpeaking();
+  } else {
+    // Focus input when opened
+    const input = document.getElementById('medivoiceInput');
+    if (input) input.focus();
   }
 }
 
@@ -403,6 +546,7 @@ function toggleListening() {
     recognition.stop();
   } else {
     try {
+      recognition.lang = currentLang; // ensure matching language before recording
       recognition.start();
     } catch (err) {
       console.warn('Recognition start error:', err);
@@ -448,38 +592,40 @@ async function processMediVoiceBackend(messageText) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         message: messageText,
+        language: currentLang,
         target_patient_id: targetPatientId
       })
     });
 
     const data = await response.json();
     if (data.success && data.reply) {
-      appendMediVoiceMessage('assistant', data.reply);
-      speakText(data.reply);
+      const detectedLang = data.language || currentLang;
+      appendMediVoiceMessage('assistant', data.reply, detectedLang);
+      speakText(data.reply, detectedLang);
 
-      // Handle safe actions
+      // Handle safe navigation actions
       if (data.action) {
         if (data.action.type === 'navigate' && data.action.url) {
-          setTimeout(() => { window.location.href = data.action.url; }, 2000);
+          setTimeout(() => { window.location.href = data.action.url; }, 2200);
         } else if (data.action.type === 'refresh_dashboard') {
-          setTimeout(() => { window.location.reload(); }, 2200);
+          setTimeout(() => { window.location.reload(); }, 2400);
         }
       }
     } else {
-      appendMediVoiceMessage('assistant', data.reply || 'Sorry, I encountered an issue processing your request.');
+      appendMediVoiceMessage('assistant', data.reply || 'Sorry, I encountered an issue processing your request.', currentLang);
       updateMediVoiceStatus('idle', 'Online • Ready');
     }
   } catch (err) {
     console.error('MediVoice backend error:', err);
-    appendMediVoiceMessage('assistant', '⚠️ Unable to reach MediVoice service. Please check your connection.');
+    appendMediVoiceMessage('assistant', '⚠️ Unable to reach MediVoice service. Please check your connection.', currentLang);
     updateMediVoiceStatus('idle', 'Online • Ready');
   }
 }
 
 /**
- * Speak assistant text aloud using SpeechSynthesis API
+ * Speak assistant text aloud using SpeechSynthesis API in the requested language
  */
-function speakText(text) {
+function speakText(text, lang) {
   const isMuted = localStorage.getItem('medivoice_mute') === 'true';
   if (isMuted || !('speechSynthesis' in window)) {
     updateMediVoiceStatus('idle', 'Online • Ready');
@@ -488,14 +634,27 @@ function speakText(text) {
 
   window.speechSynthesis.cancel(); // Stop any pending speech
 
-  const cleanText = text.replace(/[*_#`~🚨⚠️✓✕]/g, '');
+  const targetLang = lang || currentLang || 'en-IN';
+  const cleanText = text.replace(/[*_#`~🚨⚠️✓✕•]/g, '').trim();
   const utterance = new SpeechSynthesisUtterance(cleanText);
-  utterance.lang = 'en-US';
+  utterance.lang = targetLang;
   utterance.rate = parseFloat(localStorage.getItem('medivoice_rate') || '1.0');
+
+  // Match best voice from available voices
+  if (availableVoices && availableVoices.length > 0) {
+    const langCode = targetLang.toLowerCase().split('-')[0]; // e.g. 'te', 'hi', 'ta', 'en'
+    const matchedVoice = availableVoices.find(v => {
+      const vLang = v.lang.toLowerCase();
+      return vLang === targetLang.toLowerCase() || vLang.startsWith(langCode);
+    });
+    if (matchedVoice) {
+      utterance.voice = matchedVoice;
+    }
+  }
 
   utterance.onstart = () => {
     isSpeaking = true;
-    updateMediVoiceStatus('speaking', 'Speaking...');
+    updateMediVoiceStatus('speaking', 'Speaking response...');
     const stopBtn = document.getElementById('medivoiceStopBtn');
     if (stopBtn) stopBtn.classList.add('active');
   };
@@ -507,7 +666,8 @@ function speakText(text) {
     if (stopBtn) stopBtn.classList.remove('active');
   };
 
-  utterance.onerror = () => {
+  utterance.onerror = (e) => {
+    console.warn('Speech synthesis utterance error:', e);
     isSpeaking = false;
     updateMediVoiceStatus('idle', 'Online • Ready');
     const stopBtn = document.getElementById('medivoiceStopBtn');
@@ -515,6 +675,14 @@ function speakText(text) {
   };
 
   window.speechSynthesis.speak(utterance);
+}
+
+/**
+ * Replay an assistant message
+ */
+function replayMessage(text, lang) {
+  stopSpeaking();
+  speakText(text, lang || currentLang);
 }
 
 /**
@@ -531,17 +699,160 @@ function stopSpeaking() {
 }
 
 /**
- * Append message bubble to chat window
+ * Toggle Speaker Mute State
  */
-function appendMediVoiceMessage(sender, text) {
+function toggleSpeakerMute() {
+  const isMuted = localStorage.getItem('medivoice_mute') === 'true';
+  const newMuted = !isMuted;
+  localStorage.setItem('medivoice_mute', newMuted ? 'true' : 'false');
+  if (newMuted) {
+    stopSpeaking();
+  }
+  syncSpeakerIcon();
+
+  const settingsCheckbox = document.getElementById('voiceMuteToggle');
+  if (settingsCheckbox) settingsCheckbox.checked = newMuted;
+}
+
+/**
+ * Sync Speaker Icon based on mute state
+ */
+function syncSpeakerIcon() {
+  const isMuted = localStorage.getItem('medivoice_mute') === 'true';
+  const onIcon = document.getElementById('speakerOnIcon');
+  const offIcon = document.getElementById('speakerOffIcon');
+  if (onIcon && offIcon) {
+    if (isMuted) {
+      onIcon.style.display = 'none';
+      offIcon.style.display = 'block';
+    } else {
+      onIcon.style.display = 'block';
+      offIcon.style.display = 'none';
+    }
+  }
+}
+
+/**
+ * Append message bubble to chat window with persistent storage and replay button
+ */
+function appendMediVoiceMessage(sender, text, lang) {
   const messagesBox = document.getElementById('medivoiceMessages');
   if (!messagesBox) return;
+
+  const wrapper = document.createElement('div');
+  wrapper.className = `medivoice-msg-wrapper ${sender}`;
 
   const msgDiv = document.createElement('div');
   msgDiv.className = `medivoice-msg ${sender}`;
   msgDiv.textContent = text;
-  messagesBox.appendChild(msgDiv);
+  wrapper.appendChild(msgDiv);
+
+  if (sender === 'assistant') {
+    const replayBtn = document.createElement('button');
+    replayBtn.type = 'button';
+    replayBtn.className = 'medivoice-replay-btn';
+    replayBtn.innerHTML = `
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+        <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+      </svg>
+      <span>Replay</span>
+    `;
+    replayBtn.onclick = () => replayMessage(text, lang || currentLang);
+    wrapper.appendChild(replayBtn);
+  }
+
+  messagesBox.appendChild(wrapper);
   messagesBox.scrollTop = messagesBox.scrollHeight;
+
+  // Persist to sessionStorage
+  saveMediVoiceChatHistory(sender, text, lang);
+}
+
+/**
+ * Session storage conversation persistence
+ */
+function saveMediVoiceChatHistory(sender, text, lang) {
+  try {
+    let history = JSON.parse(sessionStorage.getItem('medivoice_history') || '[]');
+    history.push({ sender, text, lang: lang || currentLang, time: Date.now() });
+    if (history.length > 50) history = history.slice(-50);
+    sessionStorage.setItem('medivoice_history', JSON.stringify(history));
+  } catch (e) {
+    console.warn('Error saving chat history:', e);
+  }
+}
+
+function restoreMediVoiceChatHistory() {
+  const messagesBox = document.getElementById('medivoiceMessages');
+  if (!messagesBox) return;
+
+  try {
+    const history = JSON.parse(sessionStorage.getItem('medivoice_history') || '[]');
+    if (history.length > 0) {
+      messagesBox.innerHTML = '';
+      history.forEach(item => {
+        const wrapper = document.createElement('div');
+        wrapper.className = `medivoice-msg-wrapper ${item.sender}`;
+
+        const msgDiv = document.createElement('div');
+        msgDiv.className = `medivoice-msg ${item.sender}`;
+        msgDiv.textContent = item.text;
+        wrapper.appendChild(msgDiv);
+
+        if (item.sender === 'assistant') {
+          const replayBtn = document.createElement('button');
+          replayBtn.type = 'button';
+          replayBtn.className = 'medivoice-replay-btn';
+          replayBtn.innerHTML = `
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+              <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+            </svg>
+            <span>Replay</span>
+          `;
+          replayBtn.onclick = () => replayMessage(item.text, item.lang || currentLang);
+          wrapper.appendChild(replayBtn);
+        }
+        messagesBox.appendChild(wrapper);
+      });
+      messagesBox.scrollTop = messagesBox.scrollHeight;
+      return;
+    }
+  } catch (e) {
+    console.warn('Error restoring chat history:', e);
+  }
+
+  // If no history, show localized initial greeting
+  renderDefaultGreeting();
+}
+
+function renderDefaultGreeting() {
+  const messagesBox = document.getElementById('medivoiceMessages');
+  if (!messagesBox) return;
+
+  const greetings = {
+    'en-IN': "👋 Hello! I am MediVoice, your multilingual medication assistant. You can speak to me or type your questions in English, Hindi, Telugu, or Tamil.",
+    'hi-IN': "👋 नमस्ते! मैं मेडीवॉइस (MediVoice) हूँ, आपका बहुभाषी दवा सहायक। आप मुझसे हिन्दी, अंग्रेज़ी, तेलुगु या तमिल में बोलकर या लिखकर पूछ सकते हैं।",
+    'te-IN': "👋 నమస్కారం! నేను మెడివాయిస్ (MediVoice), మీ బహుభాషా ఔషధ సహాయకుడిని. మీరు నాతో తెలుగు, ఇంగ్లీష్, హిందీ లేదా తమిళంలో మాట్లాడవచ్చు లేదా టైప్ చేయవచ్చు.",
+    'ta-IN': "👋 வணக்கம்! நான் மெடிவாய்ஸ் (MediVoice), உங்கள் பன்மொழி மருந்து உதவியாளர். நீங்கள் என்னுடன் தமிழ், ஆங்கிலம், இந்தி அல்லது தெலுங்கில் பேசலாம் அல்லது தட்டச்சு செய்யலாம்."
+  };
+
+  messagesBox.innerHTML = `
+    <div class="medivoice-msg-wrapper assistant">
+      <div class="medivoice-msg assistant">${greetings[currentLang] || greetings['en-IN']}</div>
+    </div>
+  `;
+}
+
+/**
+ * Clear MediVoice conversation history
+ */
+function clearMediVoiceConversation() {
+  sessionStorage.removeItem('medivoice_history');
+  stopSpeaking();
+  renderDefaultGreeting();
+  updateMediVoiceStatus('idle', 'Online • Ready');
 }
 
 /**
@@ -558,3 +869,4 @@ function updateMediVoiceStatus(state, text) {
     sub.textContent = text;
   }
 }
+

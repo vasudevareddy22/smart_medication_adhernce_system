@@ -357,6 +357,124 @@ class SystemAdherenceTestSuite(unittest.TestCase):
         self.assertTrue(data_dup.get('already_confirmed'))
         print("[PASS] TC19 - Duplicate Confirmation Prevention")
 
+    def test_tc20_multilingual_patient_queries(self):
+        """TC20 - Verify Patient queries in English, Hindi, Telugu, and Tamil."""
+        self.client.post('/login', data={'email': 'patient@test.com', 'password': 'patient123'})
+
+        # 1. English
+        res_en = self.client.post('/api/medivoice/chat', json={
+            'message': 'What medicines do I need to take today?',
+            'language': 'en-IN'
+        })
+        self.assertEqual(res_en.status_code, 200)
+        data_en = res_en.get_json()
+        self.assertTrue(data_en['success'])
+        self.assertEqual(data_en['language'], 'en-IN')
+
+        # 2. Hindi (Devanagari)
+        res_hi = self.client.post('/api/medivoice/chat', json={
+            'message': 'आज मुझे कौन सी दवाइयाँ लेनी हैं?',
+            'language': 'hi-IN'
+        })
+        self.assertEqual(res_hi.status_code, 200)
+        data_hi = res_hi.get_json()
+        self.assertTrue(data_hi['success'])
+        self.assertEqual(data_hi['language'], 'hi-IN')
+
+        # 3. Telugu (Telugu script)
+        res_te = self.client.post('/api/medivoice/chat', json={
+            'message': 'ఈరోజు నేను ఏ మందులు వేసుకోవాలి?',
+            'language': 'te-IN'
+        })
+        self.assertEqual(res_te.status_code, 200)
+        data_te = res_te.get_json()
+        self.assertTrue(data_te['success'])
+        self.assertEqual(data_te['language'], 'te-IN')
+
+        # 4. Tamil (Tamil script)
+        res_ta = self.client.post('/api/medivoice/chat', json={
+            'message': 'இன்று நான் என்ன மருந்துகளை எடுக்க வேண்டும்?',
+            'language': 'ta-IN'
+        })
+        self.assertEqual(res_ta.status_code, 200)
+        data_ta = res_ta.get_json()
+        self.assertTrue(data_ta['success'])
+        self.assertEqual(data_ta['language'], 'ta-IN')
+
+        print("[PASS] TC20 - Multilingual Patient Queries (EN, HI, TE, TA)")
+
+    def test_tc21_multilingual_caregiver_queries(self):
+        """TC21 - Verify Caregiver queries in Hindi, Telugu, and Tamil."""
+        self.client.post('/login', data={'email': 'caregiver@test.com', 'password': 'caregiver123'})
+
+        # Hindi Caregiver query
+        res_hi = self.client.post('/api/medivoice/chat', json={
+            'message': 'आज किन मरीजों की दवा छूटी है?',
+            'language': 'hi-IN'
+        })
+        self.assertEqual(res_hi.status_code, 200)
+        data_hi = res_hi.get_json()
+        self.assertTrue(data_hi['success'])
+        self.assertTrue(data_hi['authorized'])
+        self.assertEqual(data_hi['language'], 'hi-IN')
+
+        # Telugu Caregiver query
+        res_te = self.client.post('/api/medivoice/chat', json={
+            'message': 'ఈరోజు ఏ పేషెంట్లు మందు మిస్ అయ్యారు?',
+            'language': 'te-IN'
+        })
+        self.assertEqual(res_te.status_code, 200)
+        data_te = res_te.get_json()
+        self.assertTrue(data_te['success'])
+        self.assertTrue(data_te['authorized'])
+        self.assertEqual(data_te['language'], 'te-IN')
+
+        # Tamil Caregiver query
+        res_ta = self.client.post('/api/medivoice/chat', json={
+            'message': 'இன்று யார் மருந்தை தவறவிட்டார்கள்?',
+            'language': 'ta-IN'
+        })
+        self.assertEqual(res_ta.status_code, 200)
+        data_ta = res_ta.get_json()
+        self.assertTrue(data_ta['success'])
+        self.assertTrue(data_ta['authorized'])
+        self.assertEqual(data_ta['language'], 'ta-IN')
+
+        print("[PASS] TC21 - Multilingual Caregiver Queries (HI, TE, TA)")
+
+    def test_tc22_app_guidance_and_safety_multilingual(self):
+        """TC22 - Verify Application Guide and Safety Guardrails across languages."""
+        self.client.post('/login', data={'email': 'patient@test.com', 'password': 'patient123'})
+
+        # App guidance in Telugu
+        res_guide = self.client.post('/api/medivoice/chat', json={
+            'message': 'ఈ సిస్టమ్‌ను ఎలా ఉపయోగించాలి?',
+            'language': 'te-IN'
+        })
+        data_guide = res_guide.get_json()
+        self.assertEqual(data_guide['mode'], 'app_guide')
+        self.assertEqual(data_guide['language'], 'te-IN')
+
+        # Emergency in Hindi
+        res_em_hi = self.client.post('/api/medivoice/chat', json={
+            'message': 'मुझे बहुत तेज़ सीने में दर्द है, मदद करें',
+            'language': 'hi-IN'
+        })
+        data_em_hi = res_em_hi.get_json()
+        self.assertEqual(data_em_hi['mode'], 'safety_guardrail')
+        self.assertIn('112', data_em_hi['reply'])
+
+        # Emergency in Tamil
+        res_em_ta = self.client.post('/api/medivoice/chat', json={
+            'message': 'நெஞ்சு வலி மிக அதிகம், அவசர உதவி',
+            'language': 'ta-IN'
+        })
+        data_em_ta = res_em_ta.get_json()
+        self.assertEqual(data_em_ta['mode'], 'safety_guardrail')
+        self.assertIn('112', data_em_ta['reply'])
+
+        print("[PASS] TC22 - Multilingual Application Guidance & Emergency Guardrails")
+
 
 if __name__ == '__main__':
     unittest.main()
