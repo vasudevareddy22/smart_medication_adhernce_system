@@ -218,6 +218,12 @@
         form.submit();
       }
     }
+    window.quickFillAndSubmit = quickFillAndSubmit;
   </script>
+
+  <!-- MediVoice Assistant Widget Partial (Available on Login for Voice Help & 1-Click Login) -->
+  {% include 'medivoice_widget.html' %}
+
+  <script src="{{ url_for('static', filename='js/script.js') }}"></script>
 </body>
 </html>

@@ -475,6 +475,51 @@ class SystemAdherenceTestSuite(unittest.TestCase):
 
         print("[PASS] TC22 - Multilingual Application Guidance & Emergency Guardrails")
 
+    def test_tc23_login_page_voice_agent_and_guest_queries(self):
+        """TC23 - Verify Voice Assistant is present on Login page and handles guest/login intents."""
+        # 1. Login page contains MediVoice elements
+        res_login_page = self.client.get('/login')
+        self.assertEqual(res_login_page.status_code, 200)
+        self.assertIn(b"medivoiceTriggerBtn", res_login_page.data)
+        self.assertIn(b"medivoicePermissionModal", res_login_page.data)
+
+        # 2. Unauthenticated user asking how to log in
+        with self.client.session_transaction() as sess:
+            sess.clear()
+        res_guest = self.client.post('/api/medivoice/chat', json={
+            'message': 'How do I log in to this system?',
+            'language': 'en-IN'
+        })
+        self.assertEqual(res_guest.status_code, 200)
+        data_guest = res_guest.get_json()
+        self.assertTrue(data_guest['success'])
+        self.assertIn('patient@test.com', data_guest['reply'])
+
+        # 3. Voice 1-click patient login action
+        res_voice_login = self.client.post('/api/medivoice/chat', json={
+            'message': 'Log in as patient',
+            'language': 'en-IN'
+        })
+        self.assertEqual(res_voice_login.status_code, 200)
+        data_voice_login = res_voice_login.get_json()
+        self.assertTrue(data_voice_login['success'])
+        self.assertIsNotNone(data_voice_login['action'])
+        self.assertEqual(data_voice_login['action']['type'], 'quick_login')
+        self.assertEqual(data_voice_login['action']['email'], 'patient@test.com')
+
+        # 4. Voice 1-click caregiver login action
+        res_cg_voice = self.client.post('/api/medivoice/chat', json={
+            'message': 'Login as caregiver',
+            'language': 'en-IN'
+        })
+        self.assertEqual(res_cg_voice.status_code, 200)
+        data_cg_voice = res_cg_voice.get_json()
+        self.assertTrue(data_cg_voice['success'])
+        self.assertEqual(data_cg_voice['action']['type'], 'quick_login')
+        self.assertEqual(data_cg_voice['action']['email'], 'caregiver@test.com')
+
+        print("[PASS] TC23 - Login Page Voice Agent & 1-Click Voice Login")
+
 
 if __name__ == '__main__':
     unittest.main()

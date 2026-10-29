@@ -868,20 +868,21 @@ def medivoice_chat():
     """
     Conversational AI endpoint for MediVoice.
     Handles voice and typed text queries, grounded in actual database records.
+    Accessible to both logged-in users and unauthenticated users on Login page.
     """
-    if "user_id" not in session:
-        return jsonify({"success": False, "reply": "Please log in to speak with MediVoice."}), 401
-
     data = request.get_json() or {}
     user_text = data.get("message", "").strip()
     target_patient_id = data.get("target_patient_id")
     requested_lang = data.get("language")
 
+    user_id = session.get("user_id")
+    user_role = session.get("role", "guest" if not user_id else "patient")
+
     conn = get_db()
     result = process_medivoice_query(
         user_text=user_text,
-        user_id=session["user_id"],
-        user_role=session.get("role", "patient"),
+        user_id=user_id,
+        user_role=user_role,
         db_conn=conn,
         target_patient_id=target_patient_id,
         requested_lang=requested_lang

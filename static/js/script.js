@@ -360,63 +360,92 @@ function onMediVoiceLanguageChange(newLang) {
 }
 
 /**
- * Render dynamic quick prompt chips according to current language and user role
+ * Render dynamic quick prompt chips according to current language and user role / page context
  */
 function renderQuickPromptChips() {
   const container = document.getElementById('medivoiceQuickPrompts');
   if (!container) return;
 
+  const isLoginPage = window.location.pathname === '/login' || window.location.pathname === '/' || !!document.getElementById('authForm');
   const isCaregiver = window.location.pathname.includes('/caregiver') || !!document.getElementById('caregiverPatientSelect');
 
   const prompts = {
-    'en-IN': isCaregiver ? [
+    'en-IN': isLoginPage ? [
+      { label: "👤 Patient Login", text: "Login as patient" },
+      { label: "🩺 Caregiver Login", text: "Login as caregiver" },
+      { label: "❓ How to login", text: "How do I log in to this system?" },
+      { label: "🎙️ Mic & Audio Settings", action: "open_permission_modal" }
+    ] : (isCaregiver ? [
       { label: "🚨 Missed Today", text: "Which patients missed a dose today?" },
       { label: "📈 7-Day Adherence", text: "Show this patient's adherence for the last seven days" },
       { label: "⏳ Pending Doses", text: "Which medicines have pending scheduled doses?" },
-      { label: "📋 Missed Summary", text: "Summarize this patient's recent missed doses" }
+      { label: "📋 Missed Summary", text: "Summarize this patient's recent missed doses" },
+      { label: "🎙️ Mic Settings", action: "open_permission_modal" }
     ] : [
       { label: "💊 Today's Medicines", text: "What medicines do I need to take today?" },
       { label: "📊 My Adherence", text: "What is my adherence percentage?" },
       { label: "⚠️ Missed Doses", text: "Have I missed any doses this week?" },
       { label: "✓ Mark Taken", text: "I took my medicine" },
-      { label: "❓ How to use app", text: "How do I use this system?" }
-    ],
-    'hi-IN': isCaregiver ? [
+      { label: "❓ How to use app", text: "How do I use this system?" },
+      { label: "🎙️ Mic Settings", action: "open_permission_modal" }
+    ]),
+    'hi-IN': isLoginPage ? [
+      { label: "👤 मरीज लॉगिन", text: "मरीज लॉगिन" },
+      { label: "🩺 केयरगिवर लॉगिन", text: "केयरगिवर लॉगिन" },
+      { label: "❓ लॉगिन सहायता", text: "लॉगिन कैसे करें?" },
+      { label: "🎙️ माइक सेटिंग", action: "open_permission_modal" }
+    ] : (isCaregiver ? [
       { label: "🚨 आज छूटी दवाएँ", text: "आज किन मरीजों की दवा छूटी है?" },
       { label: "📈 7 दिन का रिकॉर्ड", text: "पिछले 7 दिनों का अनुपालन रिकॉर्ड दिखाएं" },
       { label: "⏳ लंबित दवाएँ", text: "किन दवाओं की खुराक अभी बाकी है?" },
-      { label: "📋 छूटी खुराकें", text: "छूटी हुई दवाओं का विवरण दें" }
+      { label: "📋 छूटी खुराकें", text: "छूटी हुई दवाओं का विवरण दें" },
+      { label: "🎙️ माइक सेटिंग", action: "open_permission_modal" }
     ] : [
       { label: "💊 आज की दवाइयाँ", text: "आज मुझे कौन सी दवाइयाँ लेनी हैं?" },
       { label: "📊 अनुपालन प्रतिशत", text: "मेरा अनुपालन प्रतिशत कितना है?" },
       { label: "⚠️ छूटी खुराकें", text: "क्या मेरी कोई खुराक छूटी है?" },
       { label: "✓ दवा ले ली", text: "मैंने अपनी दवा ले ली है" },
-      { label: "❓ ऐप का उपयोग", text: "मैं इस ऐप का उपयोग कैसे करूँ?" }
-    ],
-    'te-IN': isCaregiver ? [
+      { label: "❓ ऐप का उपयोग", text: "मैं इस ऐप का उपयोग कैसे करूँ?" },
+      { label: "🎙️ माइक सेटिंग", action: "open_permission_modal" }
+    ]),
+    'te-IN': isLoginPage ? [
+      { label: "👤 పేషెంట్ లాగిన్", text: "పేషెంట్ లాగిన్" },
+      { label: "🩺 కేర్‌గివర్ లాగిన్", text: "కేర్‌గివర్ లాగిన్" },
+      { label: "❓ లాగిన్ ఎలా", text: "సిస్టమ్‌లోకి ఎలా లాగిన్ అవ్వాలి?" },
+      { label: "🎙️ మైక్ సెట్టింగ్స్", action: "open_permission_modal" }
+    ] : (isCaregiver ? [
       { label: "🚨 మిస్ అయిన డోస్‌లు", text: "ఈరోజు ఏ పేషెంట్లు మందు మిస్ అయ్యారు?" },
       { label: "📈 7 రోజుల రిపోర్ట్", text: "గత 7 రోజుల అనుసరణ చూపించండి" },
       { label: "⏳ పెండింగ్ డోస్‌లు", text: "ఏ మందులు ఇంకా వేసుకోవాల్సి ఉంది?" },
-      { label: "📋 వివరాలు", text: "మిస్ అయిన డోస్‌ల వివరాలు ఇవ్వండి" }
+      { label: "📋 వివరాలు", text: "మిస్ అయిన డోస్‌ల వివరాలు ఇవ్వండి" },
+      { label: "🎙️ మైక్ సెట్టింగ్స్", action: "open_permission_modal" }
     ] : [
       { label: "💊 ఈరోజు మందులు", text: "ఈరోజు నేను ఏ మందులు వేసుకోవాలి?" },
       { label: "📊 నా అనుసరణ శాతం", text: "నా మందుల అనుసరణ శాతం ఎంత?" },
       { label: "⚠️ మిస్ అయిన డోస్‌లు", text: "ఈ వారం నేను ఏమైనా మందులు మిస్ అయ్యానా?" },
       { label: "✓ మందు వేసుకున్నాను", text: "నేను మందు వేసుకున్నాను" },
-      { label: "❓ యాప్ ఎలా వాడాలి", text: "ఈ సిస్టమ్‌ను ఎలా ఉపయోగించాలి?" }
-    ],
-    'ta-IN': isCaregiver ? [
+      { label: "❓ యాప్ ఎలా వాడాలి", text: "ఈ సిస్టమ్‌ను ఎలా ఉపయోగించాలి?" },
+      { label: "🎙️ మైక్ సెట్టింగ్స్", action: "open_permission_modal" }
+    ]),
+    'ta-IN': isLoginPage ? [
+      { label: "👤 நோயாளி உள்நுழைவு", text: "நோயாளி உள்நுழைவு" },
+      { label: "🩺 பராமரிப்பாளர்", text: "பராமரிப்பாளர் உள்நுழைவு" },
+      { label: "❓ உள்நுழைவு உதவி", text: "உள்நுழைவது எப்படி?" },
+      { label: "🎙️ மைக் அமைப்புகள்", action: "open_permission_modal" }
+    ] : (isCaregiver ? [
       { label: "🚨 இன்று தவறவிட்டவர்கள்", text: "இன்று யார் மருந்தை தவறவிட்டார்கள்?" },
       { label: "📈 7 நாள் அறிக்கை", text: "கடந்த 7 நாட்களின் பின்பற்றுதலைக் காட்டுங்கள்" },
       { label: "⏳ நிலுவை மருந்துகள்", text: "எந்த மருந்துகள் நிலுவையில் உள்ளன?" },
-      { label: "📋 சுருக்கம்", text: "தவறவிட்ட மருந்துகளின் சுருக்கத்தைக் கொடுங்கள்" }
+      { label: "📋 சுருக்கம்", text: "தவறவிட்ட மருந்துகளின் சுருக்கத்தைக் கொடுங்கள்" },
+      { label: "🎙️ மைக் அமைப்புகள்", action: "open_permission_modal" }
     ] : [
       { label: "💊 இன்றைய மருந்துகள்", text: "இன்று நான் என்ன மருந்துகளை எடுக்க வேண்டும்?" },
       { label: "📊 பின்பற்றுதல் விகிதம்", text: "எனது மருந்து பின்பற்றுதல் சதவீதம் என்ன?" },
       { label: "⚠️ தவறவிட்ட மருந்துகள்", text: "நான் ஏதேனும் மருந்துகளை தவறவிட்டேனா?" },
       { label: "✓ மருந்து எடுத்தேன்", text: "நான் மருந்து எடுத்துக்கொண்டேன்" },
-      { label: "❓ செயலியை பயன்படுத்த", text: "இந்த அமைப்பை எவ்வாறு பயன்படுத்துவது?" }
-    ]
+      { label: "❓ செயலியை பயன்படுத்த", text: "இந்த அமைப்பை எவ்வாறு பயன்படுத்துவது?" },
+      { label: "🎙️ மைக் அமைப்புகள்", action: "open_permission_modal" }
+    ])
   };
 
   const list = prompts[currentLang] || prompts['en-IN'];
@@ -426,10 +455,19 @@ function renderQuickPromptChips() {
     btn.type = 'button';
     btn.className = 'medivoice-chip';
     btn.textContent = item.label;
-    btn.onclick = () => sendQuickChip(item.text);
+    if (item.action === 'open_permission_modal') {
+      btn.onclick = () => openMediVoicePermissionModal();
+    } else {
+      btn.onclick = () => sendQuickChip(item.text);
+    }
     container.appendChild(btn);
   });
 }
+
+/**
+ * Track mic permission status across session
+ */
+let micPermissionGranted = false;
 
 /**
  * Initialize Web Speech API SpeechRecognition with Multilingual Support
@@ -448,6 +486,7 @@ function initSpeechRecognition() {
 
   recognition.onstart = () => {
     isListening = true;
+    micPermissionGranted = true;
     updateMediVoiceStatus('listening', 'Listening in ' + currentLang + '...');
     const micBtn = document.getElementById('medivoiceMicBtn');
     if (micBtn) micBtn.classList.add('listening');
@@ -490,11 +529,14 @@ function initSpeechRecognition() {
 
     let msg = 'Voice recognition error.';
     if (event.error === 'not-allowed') {
-      msg = 'Microphone permission denied. You can enable microphone permissions in your browser or type your question below.';
+      micPermissionGranted = false;
+      openMediVoicePermissionModal();
+      updatePermissionAlert('denied');
+      msg = 'Microphone permission blocked. Click the lock icon (🔒) in your address bar and set Microphone to "Allow".';
     } else if (event.error === 'no-speech') {
       msg = 'No speech was detected. Please click the microphone button again or type your message.';
     } else if (event.error === 'network') {
-      msg = 'Speech recognition network error. Please verify your connection or type your question.';
+      msg = 'Speech recognition network error. Please verify your internet connection or use typed chat.';
     }
     updateMediVoiceStatus('idle', 'Online • Ready');
     appendMediVoiceMessage('assistant', `⚠️ ${msg}`);
@@ -531,10 +573,11 @@ function toggleMediVoice() {
 }
 
 /**
- * Trigger voice listening
+ * Trigger voice listening with explicit permission prompt resolution
  */
-function toggleListening() {
-  if (!recognition) {
+async function toggleListening() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
     alert('Speech recognition is not supported in this browser. Please use the text input below to chat with MediVoice.');
     return;
   }
@@ -543,13 +586,39 @@ function toggleListening() {
   stopSpeaking();
 
   if (isListening) {
-    recognition.stop();
-  } else {
+    if (recognition) recognition.stop();
+    return;
+  }
+
+  // 1. Proactively prompt user via getUserMedia if not yet explicitly granted.
+  // This explicitly triggers the browser's native "Allow this site to use your microphone?" dialog!
+  if (!micPermissionGranted && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
     try {
-      recognition.lang = currentLang; // ensure matching language before recording
-      recognition.start();
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // Stop media tracks immediately so speech recognition has exclusive audio access
+      stream.getTracks().forEach(t => t.stop());
+      micPermissionGranted = true;
     } catch (err) {
-      console.warn('Recognition start error:', err);
+      console.warn('getUserMedia prompt error:', err);
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        openMediVoicePermissionModal();
+        updatePermissionAlert('denied');
+        appendMediVoiceMessage('assistant', '⚠️ Microphone permission is blocked by your browser for localhost:5000. Please click the lock icon (🔒) in your address bar, set Microphone to "Allow", and reload.');
+        return;
+      }
+    }
+  }
+
+  // 2. Start speech recognition in selected language
+  try {
+    if (!recognition) initSpeechRecognition();
+    recognition.lang = currentLang;
+    recognition.start();
+  } catch (err) {
+    console.warn('Recognition start error:', err);
+    if (err.name === 'NotAllowedError') {
+      openMediVoicePermissionModal();
+      updatePermissionAlert('denied');
     }
   }
 }
@@ -603,9 +672,19 @@ async function processMediVoiceBackend(messageText) {
       appendMediVoiceMessage('assistant', data.reply, detectedLang);
       speakText(data.reply, detectedLang);
 
-      // Handle safe navigation actions
+      // Handle voice actions (1-click login, navigation, refresh)
       if (data.action) {
-        if (data.action.type === 'navigate' && data.action.url) {
+        if (data.action.type === 'quick_login') {
+          if (typeof window.quickFillAndSubmit === 'function') {
+            setTimeout(() => {
+              window.quickFillAndSubmit(data.action.email, data.action.password);
+            }, 1600);
+          } else {
+            setTimeout(() => {
+              window.location.href = '/login';
+            }, 1600);
+          }
+        } else if (data.action.type === 'navigate' && data.action.url) {
           setTimeout(() => { window.location.href = data.action.url; }, 2200);
         } else if (data.action.type === 'refresh_dashboard') {
           setTimeout(() => { window.location.reload(); }, 2400);
@@ -639,6 +718,7 @@ function speakText(text, lang) {
   const utterance = new SpeechSynthesisUtterance(cleanText);
   utterance.lang = targetLang;
   utterance.rate = parseFloat(localStorage.getItem('medivoice_rate') || '1.0');
+  utterance.volume = parseFloat(localStorage.getItem('medivoice_volume') || '1.0');
 
   // Match best voice from available voices
   if (availableVoices && availableVoices.length > 0) {
@@ -712,6 +792,8 @@ function toggleSpeakerMute() {
 
   const settingsCheckbox = document.getElementById('voiceMuteToggle');
   if (settingsCheckbox) settingsCheckbox.checked = newMuted;
+  const modalCheckbox = document.getElementById('modalMuteCheckbox');
+  if (modalCheckbox) modalCheckbox.checked = newMuted;
 }
 
 /**
@@ -831,11 +913,21 @@ function renderDefaultGreeting() {
   const messagesBox = document.getElementById('medivoiceMessages');
   if (!messagesBox) return;
 
+  const isLoginPage = window.location.pathname === '/login' || window.location.pathname === '/' || !!document.getElementById('authForm');
+
   const greetings = {
-    'en-IN': "👋 Hello! I am MediVoice, your multilingual medication assistant. You can speak to me or type your questions in English, Hindi, Telugu, or Tamil.",
-    'hi-IN': "👋 नमस्ते! मैं मेडीवॉइस (MediVoice) हूँ, आपका बहुभाषी दवा सहायक। आप मुझसे हिन्दी, अंग्रेज़ी, तेलुगु या तमिल में बोलकर या लिखकर पूछ सकते हैं।",
-    'te-IN': "👋 నమస్కారం! నేను మెడివాయిస్ (MediVoice), మీ బహుభాషా ఔషధ సహాయకుడిని. మీరు నాతో తెలుగు, ఇంగ్లీష్, హిందీ లేదా తమిళంలో మాట్లాడవచ్చు లేదా టైప్ చేయవచ్చు.",
-    'ta-IN': "👋 வணக்கம்! நான் மெடிவாய்ஸ் (MediVoice), உங்கள் பன்மொழி மருந்து உதவியாளர். நீங்கள் என்னுடன் தமிழ், ஆங்கிலம், இந்தி அல்லது தெலுங்கில் பேசலாம் அல்லது தட்டச்சு செய்யலாம்."
+    'en-IN': isLoginPage 
+      ? "👋 Hello! I am MediVoice. You can speak or type to log in (say 'Log in as Patient' or 'Log in as Caregiver'), ask questions, or adjust microphone permissions."
+      : "👋 Hello! I am MediVoice, your multilingual medication assistant. You can speak to me or type your questions in English, Hindi, Telugu, or Tamil.",
+    'hi-IN': isLoginPage 
+      ? "👋 नमस्ते! मैं मेडीवॉइस हूँ। आप मुझसे बोलकर या लिखकर लॉगिन कर सकते हैं ('मरीज लॉगिन' कहें), सहायता प्राप्त कर सकते हैं, या माइक सेटिंग्स समायोजित कर सकते हैं।"
+      : "👋 नमस्ते! मैं मेडीवॉइस (MediVoice) हूँ, आपका बहुभाषी दवा सहायक। आप मुझसे हिन्दी, अंग्रेज़ी, तेलुगु या तमिल में बोलकर या लिखकर पूछ सकते हैं।",
+    'te-IN': isLoginPage 
+      ? "👋 నమస్కారం! నేను మెడివాయిస్. మీరు లాగిన్ అవ్వడానికి ('పేషెంట్ లాగిన్' అని చెప్పండి), సహాయం పొందడానికి లేదా మైక్ అనుమతులను సర్దుబాటు చేయడానికి మాట్లాడవచ్చు."
+      : "👋 నమస్కారం! నేను మెడివాయిస్ (MediVoice), మీ బహుభాషా ఔషధ సహాయకుడిని. మీరు నాతో తెలుగు, ఇంగ్లీష్, హిందీ లేదా తమిళంలో మాట్లాడవచ్చు లేదా టైప్ చేయవచ్చు.",
+    'ta-IN': isLoginPage 
+      ? "👋 வணக்கம்! நான் மெடிவாய்ஸ். நீங்கள் உள்நுழைய ('நோயாளி உள்நுழைவு' என்று சொல்லுங்கள்), கேள்விகள் கேட்க அல்லது மைக் அமைப்புகளை சரிசெய்ய பேசலாம்."
+      : "👋 வணக்கம்! நான் மெடிவாய்ஸ் (MediVoice), உங்கள் பன்மொழி மருந்து உதவியாளர். நீங்கள் என்னுடன் தமிழ், ஆங்கிலம், இந்தி அல்லது தெலுங்கில் பேசலாம் அல்லது தட்டச்சு செய்யலாம்."
   };
 
   messagesBox.innerHTML = `
@@ -869,4 +961,124 @@ function updateMediVoiceStatus(state, text) {
     sub.textContent = text;
   }
 }
+
+/* ==========================================================================
+   MICROPHONE PERMISSION & AUDIO SETTINGS ADJUSTMENT MODAL CONTROLLERS
+   ========================================================================== */
+
+function openMediVoicePermissionModal() {
+  const modal = document.getElementById('medivoicePermissionModal');
+  if (modal) {
+    modal.classList.add('active');
+    checkMicPermissionStatus();
+
+    // Sync sliders
+    const rate = localStorage.getItem('medivoice_rate') || '1.0';
+    const vol = localStorage.getItem('medivoice_volume') || '1.0';
+    const isMuted = localStorage.getItem('medivoice_mute') === 'true';
+
+    const rSlider = document.getElementById('modalRateSlider');
+    const rVal = document.getElementById('modalRateVal');
+    if (rSlider && rVal) { rSlider.value = rate; rVal.textContent = `${rate}x`; }
+
+    const vSlider = document.getElementById('modalVolSlider');
+    const vVal = document.getElementById('modalVolVal');
+    if (vSlider && vVal) { vSlider.value = vol; vVal.textContent = `${Math.round(vol * 100)}%`; }
+
+    const mCheck = document.getElementById('modalMuteCheckbox');
+    if (mCheck) mCheck.checked = isMuted;
+  }
+}
+
+function closeMediVoicePermissionModal() {
+  const modal = document.getElementById('medivoicePermissionModal');
+  if (modal) modal.classList.remove('active');
+}
+
+async function checkMicPermissionStatus() {
+  if (navigator.permissions && navigator.permissions.query) {
+    try {
+      const perm = await navigator.permissions.query({ name: 'microphone' });
+      updatePermissionAlert(perm.state);
+      perm.onchange = () => updatePermissionAlert(perm.state);
+    } catch (e) {
+      console.warn('Permissions query not supported:', e);
+    }
+  }
+}
+
+function updatePermissionAlert(state) {
+  const icon = document.getElementById('micStatusIcon');
+  const title = document.getElementById('micStatusTitle');
+  const desc = document.getElementById('micStatusDesc');
+  const btn = document.getElementById('btnRequestMicAccess');
+  if (!title || !desc) return;
+
+  if (state === 'granted') {
+    micPermissionGranted = true;
+    if (icon) icon.textContent = '✅';
+    title.textContent = 'Microphone Access: Allowed & Ready';
+    title.style.color = '#10B981';
+    desc.textContent = 'Your browser has granted microphone access. You can click the mic button and speak anytime.';
+    if (btn) btn.innerHTML = '<span>✅ Microphone Ready (Click to Test)</span>';
+  } else if (state === 'denied') {
+    micPermissionGranted = false;
+    if (icon) icon.textContent = '❌';
+    title.textContent = 'Microphone Access: Blocked';
+    title.style.color = '#EF4444';
+    desc.innerHTML = 'Microphone access is blocked by your browser. Click the padlock (🔒) icon in your browser address bar next to <code>localhost:5000</code> and change Microphone to <strong>"Allow"</strong>, then reload.';
+    if (btn) btn.innerHTML = '<span>🔒 Blocked — Allow via Address Bar Lock Icon</span>';
+  } else {
+    if (icon) icon.textContent = '⚠️';
+    title.textContent = 'Microphone Access: Not Yet Granted';
+    title.style.color = '#F59E0B';
+    desc.textContent = 'Click "Request / Test Microphone Access" below to trigger the browser prompt and allow microphone use.';
+    if (btn) btn.innerHTML = '<span>🎙️ Request / Test Microphone Access</span>';
+  }
+}
+
+async function requestMicPermissionExplicitly() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    alert('MediaDevices API is not supported in this browser. Please use typed chat.');
+    return;
+  }
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    stream.getTracks().forEach(t => t.stop());
+    updatePermissionAlert('granted');
+    speakText("Microphone permission has been granted. MediVoice is ready for your voice.", currentLang);
+  } catch (err) {
+    console.error('Explicit getUserMedia error:', err);
+    if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+      updatePermissionAlert('denied');
+      alert("Microphone permission is blocked in your browser. To enable speaking, click the lock (🔒) icon next to localhost:5000 in your browser address bar and switch Microphone to 'Allow'.");
+    } else {
+      alert("Microphone device error: " + err.message);
+    }
+  }
+}
+
+function updateRateSetting(val) {
+  localStorage.setItem('medivoice_rate', val);
+  const rVal = document.getElementById('modalRateVal');
+  if (rVal) rVal.textContent = `${val}x`;
+  const settingsDisplay = document.getElementById('voiceRateDisplay');
+  if (settingsDisplay) settingsDisplay.textContent = `${val}x`;
+}
+
+function updateVolumeSetting(val) {
+  localStorage.setItem('medivoice_volume', val);
+  const vVal = document.getElementById('modalVolVal');
+  if (vVal) vVal.textContent = `${Math.round(val * 100)}%`;
+}
+
+function toggleMuteFromModal(checked) {
+  localStorage.setItem('medivoice_mute', checked ? 'true' : 'false');
+  if (checked) stopSpeaking();
+  syncSpeakerIcon();
+  const settingsMute = document.getElementById('voiceMuteToggle');
+  if (settingsMute) settingsMute.checked = checked;
+}
+
 

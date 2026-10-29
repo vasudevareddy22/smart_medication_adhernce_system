@@ -257,6 +257,89 @@ def process_medivoice_query(user_text, user_id, user_role, db_conn, target_patie
     cursor = db_conn.cursor()
 
     # =========================================================================
+    # 2.5 LOGIN GUIDANCE & VOICE-ASSISTED 1-CLICK LOGIN (Available on Login Page)
+    # =========================================================================
+    patient_login_patterns = [
+        "login as patient", "log in as patient", "patient login", "patient log in", "sign in as patient", "log in patient", "login patient",
+        "मरीज लॉगिन", "रोगी लॉगिन", "पेशेंट लॉगिन",
+        "పేషెంట్ లాగిన్", "రోగి లాగిన్",
+        "நோயாளி உள்நுழைவு"
+    ]
+    if any(p in text for p in patient_login_patterns):
+        login_replies = {
+            "en-IN": "Logging in as Demo Patient (patient@test.com)...",
+            "hi-IN": "डेमो मरीज (patient@test.com) के रूप में लॉगिन किया जा रहा है...",
+            "te-IN": "డెమో పేషెంట్‌గా (patient@test.com) లాగిన్ అవుతున్నారు...",
+            "ta-IN": "டெமோ நோயாளியாக (patient@test.com) உள்நுழைகிறது..."
+        }
+        return {
+            "reply": login_replies.get(lang, login_replies["en-IN"]),
+            "action": {"type": "quick_login", "email": "patient@test.com", "password": "patient123"},
+            "mode": "app_guide",
+            "lang": lang,
+            "authorized": True
+        }
+
+    caregiver_login_patterns = [
+        "login as caregiver", "log in as caregiver", "caregiver login", "caregiver log in", "sign in as caregiver", "log in caregiver", "login caregiver",
+        "केयरगिवर लॉगिन", "देखभालकर्ता लॉगिन",
+        "కేర్‌గివర్ లాగిన్", "సంరక్షకుడు లాగిన్",
+        "பராமரிப்பாளர் உள்நுழைவு"
+    ]
+    if any(p in text for p in caregiver_login_patterns):
+        login_replies = {
+            "en-IN": "Logging in as Demo Caregiver (caregiver@test.com)...",
+            "hi-IN": "डेमो केयरगिवर (caregiver@test.com) के रूप में लॉगिन किया जा रहा है...",
+            "te-IN": "డెమో కేర్‌గివర్‌గా (caregiver@test.com) లాగిన్ అవుతున్నారు...",
+            "ta-IN": "டெமோ பராமரிப்பாளராக (caregiver@test.com) உள்நுழைகிறது..."
+        }
+        return {
+            "reply": login_replies.get(lang, login_replies["en-IN"]),
+            "action": {"type": "quick_login", "email": "caregiver@test.com", "password": "caregiver123"},
+            "mode": "app_guide",
+            "lang": lang,
+            "authorized": True
+        }
+
+    general_login_patterns = [
+        "how to login", "how do i login", "how to log in", "how do i log in", "how can i log in", "how to sign in",
+        "help me login", "help me log in", "login help", "log in help", "demo login", "demo accounts", "credentials", "login credentials",
+        "लॉगिन कैसे करें", "साइन इन कैसे करें", "डेमो अकाउंट", "क्रेडेंशियल",
+        "ఎలా లాగిన్ అవ్వాలి", "సైన్ ఇన్ ఎలా చేయాలి", "డెమో అకౌంట్లు",
+        "உள்நுழைவது எப்படி", "டெமோ கணக்குகள்"
+    ]
+    if any(p in text for p in general_login_patterns):
+        gen_replies = {
+            "en-IN": "To log in, use the 1-click buttons: '👤 Patient' (patient@test.com / patient123) or '🩺 Caregiver' (caregiver@test.com / caregiver123). You can also tell me 'Log in as Patient' to sign in automatically!",
+            "hi-IN": "लॉगिन करने के लिए स्क्रीन पर 1-क्लिक बटन दबाएं: '👤 Patient' (patient@test.com / patient123) या '🩺 Caregiver' (caregiver@test.com / caregiver123)। आप मुझसे 'मरीज लॉगिन' भी कह सकते हैं!",
+            "te-IN": "లాగిన్ అవ్వడానికి స్క్రీన్‌పై ఉన్న 1-క్లిక్ బటన్‌లను నొక్కండి: '👤 Patient' (patient@test.com / patient123) లేదా '🩺 Caregiver' (caregiver@test.com / caregiver123). మీరు నాతో 'పేషెంట్ లాగిన్' అని కూడా చెప్పవచ్చు!",
+            "ta-IN": "உள்நுழைய திரையில் உள்ள 1-கிளிக் பொத்தான்களைப் பயன்படுத்தவும்: '👤 Patient' (patient@test.com / patient123) அல்லது '🩺 Caregiver' (caregiver@test.com / caregiver123). நீங்கள் என்னிடம் 'நோயாளி உள்நுழைவு' என்றும் கூறலாம்!"
+        }
+        return {
+            "reply": gen_replies.get(lang, gen_replies["en-IN"]),
+            "action": None,
+            "mode": "app_guide",
+            "lang": lang,
+            "authorized": True
+        }
+
+    # If unauthenticated / guest asks for personal medical data
+    if user_role == "guest" or not user_id:
+        guest_replies = {
+            "en-IN": "Welcome to Smart Medication Adherence System! To view your personal medication schedule and adherence history, please sign in using patient@test.com / patient123 or caregiver@test.com / caregiver123. You can also say 'Log in as Patient' or click the Patient demo button on the screen.",
+            "hi-IN": "स्मार्ट मेडिकेशन सिस्टम में आपका स्वागत है! अपनी व्यक्तिगत दवा सूची और अनुपालन इतिहास देखने के लिए कृपया patient@test.com से लॉगिन करें। आप 'मरीज लॉगिन' कह सकते हैं या स्क्रीन पर Patient बटन दबाएं।",
+            "te-IN": "స్మార్ట్ మెడికేషన్ సిస్టమ్‌కు స్వాగతం! మీ వ్యక్తిగత మందుల షెడ్యూల్ మరియు అనుసరణ చరిత్రను చూడటానికి, దయచేసి patient@test.com తో లాగిన్ అవ్వండి. మీరు 'పేషెంట్ లాగిన్' అని చెప్పవచ్చు లేదా Patient బటన్ నొక్కండి.",
+            "ta-IN": "ஸ்மார்ட் மருந்து மேலாண்மை அமைப்புக்கு வரவேற்கிறோம்! உங்கள் மருந்து அட்டவணை மற்றும் வரலாற்றைக் காண, தயவுசெய்து patient@test.com கொண்டு உள்நுழையவும். நீங்கள் 'நோயாளி உள்நுழைவு' என்று கூறலாம் அல்லது Patient பொத்தானை அழுத்தவும்."
+        }
+        return {
+            "reply": guest_replies.get(lang, guest_replies["en-IN"]),
+            "action": None,
+            "mode": "app_guide",
+            "lang": lang,
+            "authorized": True
+        }
+
+    # =========================================================================
     # 3. PATIENT DATABASE-GROUNDED INTENTS
     # =========================================================================
     if user_role == "patient":
