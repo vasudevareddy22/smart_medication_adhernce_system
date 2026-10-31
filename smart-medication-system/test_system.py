@@ -266,6 +266,13 @@ class SystemAdherenceTestSuite(unittest.TestCase):
     def test_tc14_medivoice_patient_today_medicines(self):
         """TC14 - Verify MediVoice returns today's medications from actual DB records."""
         self.client.post('/login', data={'email': 'patient@test.com', 'password': 'patient123'})
+        conn = get_db()
+        cur = conn.cursor()
+        next_month = (date.today() + timedelta(days=30)).strftime('%Y-%m-%d')
+        cur.execute("UPDATE medications SET end_date = ? WHERE patient_id = 1", (next_month,))
+        conn.commit()
+        conn.close()
+
         res = self.client.post('/api/medivoice/chat', json={
             'message': 'What medicines do I need to take today?'
         })
@@ -520,6 +527,275 @@ class SystemAdherenceTestSuite(unittest.TestCase):
 
         print("[PASS] TC23 - Login Page Voice Agent & 1-Click Voice Login")
 
+    def test_tc24_patient_phone_validation_and_update(self):
+        """TC24 - Test initial default patient phone (9989372530), Indian phone format validation, and profile update."""
+        # 1. Verify default contact in database
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("SELECT phone FROM users WHERE email = 'patient@test.com'")
+        pt = cur.fetchone()
+        self.assertIsNotNone(pt)
+        self.assertEqual(pt["phone"], "9989372530")
+        conn.close()
+
+        # 2. Login as patient and test updating to valid 10-digit Indian phone
+        self.client.post('/login', data={'email': 'patient@test.com', 'password': 'patient123'})
+        res_update = self.client.post('/settings', data={
+            'action': 'update_profile',
+            'name': 'Demo Patient Updated',
+            'phone': '+91-9876543210'
+        }, follow_redirects=True)
+        self.assertEqual(res_update.status_code, 200)
+
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("SELECT name, phone FROM users WHERE email = 'patient@test.com'")
+        pt_updated = cur.fetchone()
+        self.assertEqual(pt_updated["phone"], "9876543210")
+        # Reset back to default 9989372530
+        cur.execute("UPDATE users SET name = 'Demo Patient', phone = '9989372530' WHERE email = 'patient@test.com'")
+        conn.commit()
+        conn.close()
+
+        # 3. Test invalid phone number format rejected
+        res_invalid = self.client.post('/settings', data={
+            'action': 'update_profile',
+            'name': 'Demo Patient',
+            'phone': '12345'
+        }, follow_redirects=True)
+        self.assertIn(b"Please enter a valid 10-digit Indian mobile number", res_invalid.data)
+        print("[PASS] TC24 - Patient Phone Number Validation & Default Contact (9989372530)")
+
+    def test_tc25_caregiver_contact_collection(self):
+        """TC25 - Test caregiver setup collecting name, mobile number, relationship, and preferred channel."""
+        self.client.post('/login', data={'email': 'caregiver@test.com', 'password': 'caregiver123'})
+        res_get = self.client.get('/caregiver/setup')
+        self.assertEqual(res_get.status_code, 200)
+        self.assertIn(b"Caregiver Contact", res_get.data)
+
+        res_post = self.client.post('/caregiver/setup', data={
+            'name': 'Demo Caregiver Verified',
+            'phone': '9989372530',
+            'relationship': 'Primary Family Caregiver',
+            'preferred_channel': 'SMS',
+            'emergency_contact': 'City Hospital Emergency'
+        }, follow_redirects=True)
+        self.assertEqual(res_post.status_code, 200)
+
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("SELECT u.name, u.phone, cp.relationship, cp.preferred_channel FROM users u JOIN caregiver_profiles cp ON u.id = cp.caregiver_id WHERE u.email = 'caregiver@test.com'")
+        cg = cur.fetchone()
+        conn.close()
+        self.assertEqual(cg["phone"], "9989372530")
+        self.assertEqual(cg["relationship"], "Primary Family Caregiver")
+        self.assertEqual(cg["preferred_channel"], "SMS")
+        print("[PASS] TC25 - Caregiver Contact & Profile Collection")
+
+    def test_tc26_notification_engine_dispatch(self):
+        """TC26 - Test notification dispatch engine logging In-App and simulated SMS without fake gateway claims."""
+        from app import send_notification
+        # Test in-app dispatch
+        notif_id, status = send_notification(patient_id=1, message="Take Aspirin 100mg", notif_type="MEDICATION_REMINDER", channel="IN_APP")
+        self.assertEqual(status, "DELIVERED")
+
+        # Test mobile SMS dispatch without env keys (simulated accurately)
+        notif_id_sms, status_sms = send_notification(patient_id=1, message="Missed dose alert", notif_type="MISSED_DOSE", channel="SMS")
+        self.assertIn(status_sms, ["SIMULATED", "DELIVERED"])
+
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM notifications WHERE id = ?", (notif_id_sms,))
+        row = cur.fetchone()
+        conn.close()
+        self.assertIsNotNone(row)
+        self.assertEqual(row["channel"], "SMS")
+        self.assertIn(row["status"], ["SIMULATED", "DELIVERED"])
+        print("[PASS] TC26 - Notification Engine Dispatch & Simulated Delivery Logging")
+
+    def test_tc27_admin_authentication_and_session(self):
+        """TC27 - Test separate admin authentication and role session."""
+        with self.client.session_transaction() as sess:
+            sess.clear()
+
+        # Failed login with wrong password
+        res_fail = self.client.post('/admin/login', data={
+            'email': 'admin@smartmed.com',
+            'password': 'WrongPassword123'
+        }, follow_redirects=True)
+        self.assertEqual(res_fail.status_code, 200)
+        self.assertIn(b"Invalid administrator credentials", res_fail.data)
+
+        # Successful admin login
+        res_success = self.client.post('/admin/login', data={
+            'email': 'admin@smartmed.com',
+            'password': 'Admin@Secure2026!'
+        }, follow_redirects=True)
+        self.assertEqual(res_success.status_code, 200)
+        self.assertIn(b"Governance Overview", res_success.data)
+        self.assertIn(b"Patient Directory", res_success.data)
+
+        # Admin logout
+        res_logout = self.client.get('/admin/logout', follow_redirects=True)
+        self.assertEqual(res_logout.status_code, 200)
+        self.assertIn(b"Administrator session closed", res_logout.data)
+        print("[PASS] TC27 - Separate Admin Authentication & Session Management")
+
+    def test_tc28_admin_role_access_control(self):
+        """TC28 - Test strict 403 Forbidden enforcement on admin dashboard for patients and caregivers."""
+        # Unauthenticated user redirected
+        with self.client.session_transaction() as sess:
+            sess.clear()
+        res_anon = self.client.get('/admin/dashboard')
+        self.assertEqual(res_anon.status_code, 302)
+        self.assertIn('/admin/login', res_anon.headers['Location'])
+
+        # Patient blocked with 403
+        self.client.post('/login', data={'email': 'patient@test.com', 'password': 'patient123'})
+        res_patient = self.client.get('/admin/dashboard')
+        self.assertEqual(res_patient.status_code, 403)
+        self.assertIn(b"403", res_patient.data)
+
+        # Caregiver blocked with 403
+        self.client.post('/login', data={'email': 'caregiver@test.com', 'password': 'caregiver123'})
+        res_cg = self.client.get('/admin/dashboard')
+        self.assertEqual(res_cg.status_code, 403)
+        self.assertIn(b"403", res_cg.data)
+        print("[PASS] TC28 - Admin Role Access Control & 403 Protection")
+
+    def test_tc29_admin_dashboard_metrics_and_directory(self):
+        """TC29 - Test admin dashboard metrics, patient directory, and caregiver assignment."""
+        self.client.post('/admin/login', data={'email': 'admin@smartmed.com', 'password': 'Admin@Secure2026!'})
+        res = self.client.get('/admin/dashboard')
+        self.assertEqual(res.status_code, 200)
+        self.assertIn(b"Registered Patients", res.data)
+        self.assertIn(b"Registered Caregivers", res.data)
+        self.assertIn(b"Patient Directory", res.data)
+        self.assertIn(b"Authorized Caregivers Registry", res.data)
+        self.assertIn(b"Notification Delivery Audit Trail", res.data)
+        print("[PASS] TC29 - Admin Dashboard Metrics & Registry Oversight")
+
+    def test_tc30_caregiver_patient_detail_and_isolation(self):
+        """TC30 - Test caregiver accessing authorized patient report and receiving 403 for unauthorized patient."""
+        self.client.post('/login', data={'email': 'caregiver@test.com', 'password': 'caregiver123'})
+        # Authorized patient (ID: 1)
+        res_auth = self.client.get('/caregiver/patient/1')
+        self.assertEqual(res_auth.status_code, 200)
+        self.assertIn(b"Patient Clinical Report", res_auth.data)
+        self.assertIn(b"Download Excel", res_auth.data)
+        self.assertIn(b"Download PDF Report", res_auth.data)
+
+        # Unauthorized patient (ID: 9999)
+        res_unauth = self.client.get('/caregiver/patient/9999')
+        self.assertEqual(res_unauth.status_code, 403)
+        print("[PASS] TC30 - Caregiver Patient Detail & Unauthorized Patient Isolation")
+
+    def test_tc31_caregiver_excel_report_export(self):
+        """TC31 - Test caregiver Excel clinical report download and unauthorized rejection."""
+        self.client.post('/login', data={'email': 'caregiver@test.com', 'password': 'caregiver123'})
+        # Authorized export
+        res_excel = self.client.get('/caregiver/export/excel/1')
+        self.assertEqual(res_excel.status_code, 200)
+        self.assertIn("spreadsheetml.sheet", res_excel.headers['Content-Type'])
+        self.assertTrue(len(res_excel.data) > 100)
+
+        # Unauthorized export
+        res_unauth = self.client.get('/caregiver/export/excel/9999')
+        self.assertEqual(res_unauth.status_code, 403)
+        print("[PASS] TC31 - Caregiver Excel Report Generation & Security Guard")
+
+    def test_tc32_caregiver_pdf_report_export(self):
+        """TC32 - Test caregiver PDF clinical report download and unauthorized rejection."""
+        self.client.post('/login', data={'email': 'caregiver@test.com', 'password': 'caregiver123'})
+        # Authorized PDF export
+        res_pdf = self.client.get('/caregiver/export/pdf/1')
+        self.assertEqual(res_pdf.status_code, 200)
+        self.assertEqual(res_pdf.headers['Content-Type'], "application/pdf")
+        self.assertTrue(res_pdf.data.startswith(b"%PDF"))
+
+        # Unauthorized PDF export
+        res_unauth = self.client.get('/caregiver/export/pdf/9999')
+        self.assertEqual(res_unauth.status_code, 403)
+        print("[PASS] TC32 - Caregiver PDF Report Generation & Security Guard")
+
+    def test_tc33_admin_reports_export_access(self):
+        """TC33 - Test admin system-wide Excel & PDF export endpoints."""
+        # Non-admin access denied
+        self.client.post('/login', data={'email': 'patient@test.com', 'password': 'patient123'})
+        res_denied = self.client.get('/admin/export/excel/summary')
+        self.assertEqual(res_denied.status_code, 403)
+
+        # Admin access granted
+        self.client.post('/admin/login', data={'email': 'admin@smartmed.com', 'password': 'Admin@Secure2026!'})
+        res_sum_excel = self.client.get('/admin/export/excel/summary')
+        self.assertEqual(res_sum_excel.status_code, 200)
+        self.assertIn("spreadsheetml.sheet", res_sum_excel.headers['Content-Type'])
+
+        res_sum_pdf = self.client.get('/admin/export/pdf/summary')
+        self.assertEqual(res_sum_pdf.status_code, 200)
+        self.assertEqual(res_sum_pdf.headers['Content-Type'], "application/pdf")
+
+        res_notif_excel = self.client.get('/admin/export/excel/notifications')
+        self.assertEqual(res_notif_excel.status_code, 200)
+        self.assertIn("spreadsheetml.sheet", res_notif_excel.headers['Content-Type'])
+        print("[PASS] TC33 - Admin System-wide Excel & PDF Export Endpoints")
+
+    def test_tc34_google_oauth_account_chooser_security(self):
+        """TC34 - Test Google OAuth account chooser initiation with prompt=select_account consent, and rejection of admin role escalation."""
+        with self.client.session_transaction() as sess:
+            sess.clear()
+
+        # 1. Initiating Google OAuth returns account chooser view or redirect
+        res_chooser = self.client.get('/login/google')
+        self.assertEqual(res_chooser.status_code, 200)
+        self.assertIn(b"Choose an account", res_chooser.data)
+        self.assertIn(b"prompt=select_account consent", res_chooser.data)
+
+        # 2. Selecting a patient account signs in as patient
+        state_token = res_chooser.data.split(b'name="state" value="')[1].split(b'"')[0].decode('utf-8')
+        with self.client.session_transaction() as sess:
+            sess['oauth_state'] = state_token
+
+        res_callback = self.client.post('/login/google/callback', data={
+            'state': state_token,
+            'email': 'patient@test.com',
+            'name': 'Demo Patient'
+        }, follow_redirects=True)
+        self.assertEqual(res_callback.status_code, 200)
+        self.assertIn(b"Successfully authenticated", res_callback.data)
+
+        # 3. Security: Admin accounts cannot be compromised via Google SSO
+        with self.client.session_transaction() as sess:
+            sess['oauth_state'] = state_token
+
+        res_admin_block = self.client.post('/login/google/callback', data={
+            'state': state_token,
+            'email': 'admin@smartmed.com',
+            'name': 'Admin Attacker'
+        }, follow_redirects=True)
+        self.assertIn(b"Administrator accounts cannot be authenticated via Google SSO", res_admin_block.data)
+        print("[PASS] TC34 - Google OAuth Account Chooser & Role Escalation Defense")
+
+    def test_tc35_notification_settings_management(self):
+        """TC35 - Test Notification Settings page and updating phone and alert preferences."""
+        self.client.post('/login', data={'email': 'patient@test.com', 'password': 'patient123'})
+        res_get = self.client.get('/notification/settings')
+        self.assertEqual(res_get.status_code, 200)
+        self.assertIn(b"Mobile Notifications", res_get.data)
+        self.assertIn(b"Registered Mobile Number", res_get.data)
+
+        res_post = self.client.post('/notification/settings', data={
+            'phone': '9989372530',
+            'consent': '1',
+            'notify_reminders': '1',
+            'notify_missed': '1',
+            'notify_weekly': '1'
+        }, follow_redirects=True)
+        self.assertEqual(res_post.status_code, 200)
+        self.assertIn(b"Mobile notification preferences", res_post.data)
+        print("[PASS] TC35 - Notification Settings & Contact Preferences Management")
+
 
 if __name__ == '__main__':
     unittest.main()
+

@@ -26,6 +26,7 @@
     <nav class="nav-links">
       <a href="{{ url_for('index') }}" class="nav-link">Dashboard</a>
       <a href="{{ url_for('history') }}" class="nav-link">Adherence History</a>
+      <a href="{{ url_for('notification_settings') }}" class="nav-link">Notification Hub</a>
       <a href="{{ url_for('settings') }}" class="nav-link active">Settings</a>
     </nav>
 
@@ -92,15 +93,25 @@
           </div>
         </div>
 
-        <div class="form-group">
-          <label class="form-label">Role</label>
-          <div style="font-size:0.875rem; color:var(--cyan-accent); font-weight:600; text-transform:capitalize;">
-            {{ user.role }}
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label class="form-label" for="phone">Mobile Phone (SMS &amp; Emergency Alerts)</label>
+            <div class="input-container">
+              <input type="tel" id="phone" name="phone" class="auth-input no-left-icon" value="{{ user.phone or '9989372530' }}" pattern="^(?:\+?91[\-\s]?)?[6-9]\d{9}$">
+            </div>
+            <small style="color:var(--text-muted); font-size:0.75rem; display:block; margin-top:3px;">Supports 10-digit Indian numbers (+91).</small>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Account Role</label>
+            <div style="font-size:0.875rem; color:var(--cyan-accent); font-weight:600; text-transform:capitalize; margin-top:10px;">
+              {{ user.role }}
+            </div>
           </div>
         </div>
 
         <div style="display:flex; justify-content:flex-end;">
-          <button type="submit" class="btn-cta" style="padding:8px 16px;">Save Profile</button>
+          <button type="submit" class="btn-cta" style="padding:8px 16px;">Save Profile Changes</button>
         </div>
       </form>
     </div>

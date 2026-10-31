@@ -1914,4 +1914,120 @@ body {
   margin-top: 14px;
 }
 
+/* ==========================================================================
+   TOP AUTH HEADER & SEPARATE ADMIN ACCESS (Phase 3 & 4)
+   ========================================================================== */
+
+.auth-top-nav {
+  position: sticky;
+  top: 0;
+  width: 100%;
+  background: rgba(11, 19, 36, 0.95);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border-color);
+  z-index: 100;
+}
+
+.auth-nav-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 12px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.auth-nav-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.btn-admin-header {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  color: #FCA5A5;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.btn-admin-header:hover {
+  background: rgba(239, 68, 68, 0.25);
+  border-color: #EF4444;
+  color: #FFFFFF;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.25);
+}
+
+/* ==========================================================================
+   AUTH ROLE SWITCHER TABS (Phase 3)
+   ========================================================================== */
+
+.auth-role-tabs {
+  display: flex;
+  gap: 6px;
+  background: rgba(15, 23, 42, 0.8);
+  padding: 4px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  margin-bottom: 20px;
+}
+
+.role-tab-btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 9px 12px;
+  border-radius: 6px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.role-tab-btn:hover {
+  color: var(--text-main);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.role-tab-btn.active {
+  background: linear-gradient(135deg, rgba(11, 159, 156, 0.25) 0%, rgba(0, 242, 254, 0.15) 100%);
+  color: #00F2FE;
+  border: 1px solid rgba(0, 242, 254, 0.35);
+  box-shadow: 0 2px 8px rgba(0, 242, 254, 0.12);
+}
+
+.role-tab-btn.admin-tab {
+  flex: 0 0 auto;
+  padding: 9px 14px;
+  color: #FCA5A5;
+  border: 1px dashed rgba(239, 68, 68, 0.35);
+}
+
+.role-tab-btn.admin-tab:hover {
+  background: rgba(239, 68, 68, 0.2);
+  color: #FFFFFF;
+}
+
+@media (max-width: 768px) {
+  .notif-settings-grid,
+  .admin-cg-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+
 

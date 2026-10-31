@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin & Clinical Governance Dashboard | SmartMed</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="app-layout">
+
+  <!-- TOP NAVBAR -->
+  <header class="navbar" style="border-bottom: 1px solid rgba(239, 68, 68, 0.25);">
+    <a href="{{ url_for('admin_dashboard') }}" class="nav-brand">
+      <div class="brand-icon-box" style="background: linear-gradient(135deg, #DC2626 0%, #991B1B 100%);">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+        </svg>
+      </div>
+      <div>
+        <span class="brand-name">SmartMed</span>
+        <span class="brand-tag" style="background:rgba(239,68,68,0.2); color:#FCA5A5;">Admin Portal</span>
+      </div>
+    </a>
+
+    <nav class="nav-links">
+      <a href="{{ url_for('admin_dashboard') }}" class="nav-link active">Governance Overview</a>
+      <a href="#patientDirectory" class="nav-link">Patient Directory</a>
+      <a href="#caregiverDirectory" class="nav-link">Caregivers</a>
+      <a href="#notificationLogs" class="nav-link">Notification Audit</a>
+    </nav>
+
+    <div class="nav-actions">
+      <span style="font-size:0.8rem; color:var(--text-muted); display:inline-flex; align-items:center; gap:6px;">
+        <span style="width:8px; height:8px; border-radius:50%; background:#10B981; display:inline-block;"></span>
+        Administrator Active
+      </span>
+      <a href="{{ url_for('admin_logout') }}" class="btn-logout" title="Sign Out Administrator">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+        </svg>
+      </a>
+    </div>
+  </header>
+
+  <main class="main-content" style="max-width:1300px; padding:24px 20px;">
+    
+    <!-- PAGE HEADER WITH EXPORT ACTIONS -->
+    <div class="dashboard-header" style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:16px;">
+      <div class="header-title-box">
+        <h1>Administrative &amp; Clinical Governance</h1>
+        <p>Full system oversight across registered patients, caregivers, prescriptions, adherence compliance, and SMS dispatch</p>
+      </div>
+
+      <!-- Quick Export Buttons -->
+      <div class="header-actions" style="display:flex; gap:10px; flex-wrap:wrap;">
+        <a href="{{ url_for('admin_export_excel_summary') }}" class="btn-secondary" style="font-size:0.85rem; padding:8px 14px; gap:6px;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg>
+          <span>Export Summary (Excel)</span>
+        </a>
+        <a href="{{ url_for('admin_export_pdf_summary') }}" class="btn-secondary" style="font-size:0.85rem; padding:8px 14px; gap:6px;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#EF4444" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+          <span>Export Summary (PDF)</span>
+        </a>
+        <a href="{{ url_for('admin_export_excel_notifications') }}" class="btn-cta" style="font-size:0.85rem; padding:8px 14px; gap:6px; background:linear-gradient(135deg, #0B9F9C 0%, #00F2FE 100%);">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          <span>Export Notification Log</span>
+        </a>
+      </div>
+    </div>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="flash-banner {{ category }}">
+            <span>{{ message }}</span>
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <!-- SYSTEM KPI METRIC CARDS -->
+    <div class="metrics-grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); margin-bottom:28px;">
+      
+      <!-- Total Patients -->
+      <div class="metric-card">
+        <div class="metric-label">Registered Patients</div>
+        <div class="metric-value" style="color:var(--cyan-accent);">{{ stats.total_patients }}</div>
+        <div class="metric-subtext">Active clinical profiles</div>
+      </div>
+
+      <!-- Total Caregivers -->
+      <div class="metric-card">
+        <div class="metric-label">Registered Caregivers</div>
+        <div class="metric-value" style="color:#60A5FA;">{{ stats.total_caregivers }}</div>
+        <div class="metric-subtext">Authorized guardians</div>
+      </div>
+
+      <!-- Total Active Medications -->
+      <div class="metric-card">
+        <div class="metric-label">Total Prescriptions</div>
+        <div class="metric-value" style="color:#FBBF24;">{{ stats.total_medications }}</div>
+        <div class="metric-subtext">Schedules configured</div>
+      </div>
+
+      <!-- Recorded Missed Doses -->
+      <div class="metric-card">
+        <div class="metric-label">Total Missed Doses</div>
+        <div class="metric-value" style="color:#F87171;">{{ stats.total_missed }}</div>
+        <div class="metric-subtext">Triggered alerts</div>
+      </div>
+
+      <!-- Overall System Adherence -->
+      <div class="metric-card">
+        <div class="metric-label">System Adherence Rate</div>
+        <div class="metric-value" style="color:#34D399;">{{ stats.overall_adherence }}%</div>
+        <div class="metric-subtext">Overall compliance average</div>
+      </div>
+
+      <!-- Dispatched Notifications -->
+      <div class="metric-card">
+        <div class="metric-label">Total Notifications</div>
+        <div class="metric-value" style="color:#C084FC;">{{ stats.total_notifications }}</div>
+        <div class="metric-subtext">In-app &amp; SMS logs</div>
+      </div>
+
+    </div>
+
+    <!-- 1. PATIENT DIRECTORY SECTION -->
+    <div class="section-card" id="patientDirectory" style="margin-bottom:28px;">
+      <div class="section-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+        <div class="section-title-box">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--cyan-accent)" stroke-width="2">
+            <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+          </svg>
+          <h2 class="section-title">Patient Directory &amp; Clinical Adherence</h2>
+        </div>
+        <div>
+          <input type="text" id="patientSearchInput" placeholder="Filter patients by name or phone..." onkeyup="filterPatientTable()" style="background:var(--input-bg); border:1px solid var(--border-color); color:var(--text-main); padding:6px 14px; border-radius:6px; font-size:0.82rem; width:260px;">
+        </div>
+      </div>
+
+      <div class="table-responsive">
+        <table class="data-table" id="patientsTable">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Patient Name</th>
+              <th>Email</th>
+              <th>Mobile Contact</th>
+              <th>Active Meds</th>
+              <th>Compliance %</th>
+              <th>Registered</th>
+              <th style="text-align:right;">Clinical Reports</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for p in patients %}
+            <tr>
+              <td><code>#{{ p.id }}</code></td>
+              <td style="font-weight:600; color:#FFFFFF;">{{ p.name }}</td>
+              <td>{{ p.email }}</td>
+              <td>
+                {% if p.phone %}
+                  <span style="font-family:monospace; color:var(--cyan-accent);">+91-{{ p.phone[-10:] }}</span>
+                {% else %}
+                  <span style="color:var(--text-muted);">Not set</span>
+                {% endif %}
+              </td>
+              <td><span class="badge" style="background:#1E293B; color:#CBD5E1;">{{ p.med_count }} meds</span></td>
+              <td>
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <span style="font-weight:700; color:{% if p.adherence_rate >= 80 %}#10B981{% elif p.adherence_rate >= 50 %}#F59E0B{% else %}#EF4444{% endif %};">
+                    {{ p.adherence_rate }}%
+                  </span>
+                  <div style="flex:1; max-width:60px; height:6px; background:#1E293B; border-radius:3px; overflow:hidden;">
+                    <div style="width:{{ p.adherence_rate }}%; height:100%; background:{% if p.adherence_rate >= 80 %}#10B981{% elif p.adherence_rate >= 50 %}#F59E0B{% else %}#EF4444{% endif %};"></div>
+                  </div>
+                </div>
+              </td>
+              <td style="font-size:0.8rem; color:var(--text-muted);">{{ p.created_at[:10] if p.created_at else 'Active' }}</td>
+              <td style="text-align:right;">
+                <div style="display:inline-flex; gap:6px;">
+                  <a href="{{ url_for('admin_export_excel_patient', patient_id=p.id) }}" class="btn-secondary" style="padding:4px 8px; font-size:0.75rem;" title="Download Excel Clinical Report">
+                    📊 Excel
+                  </a>
+                  <a href="{{ url_for('admin_export_pdf_patient', patient_id=p.id) }}" class="btn-secondary" style="padding:4px 8px; font-size:0.75rem;" title="Download PDF Clinical Report">
+                    📄 PDF
+                  </a>
+                </div>
+              </td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="8" style="text-align:center; padding:24px; color:var(--text-muted);">No registered patients in database.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 2. CAREGIVER DIRECTORY & RELATIONSHIP ASSIGNMENT -->
+    <div style="display:grid; grid-template-columns: 2fr 1fr; gap:24px; margin-bottom:28px;" class="admin-cg-grid">
+      
+      <!-- Caregivers Table -->
+      <div class="section-card" id="caregiverDirectory">
+        <div class="section-header">
+          <div class="section-title-box">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#60A5FA" stroke-width="2">
+              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+              <path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+            </svg>
+            <h2 class="section-title">Authorized Caregivers Registry</h2>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Caregiver</th>
+                <th>Mobile</th>
+                <th>Channel</th>
+                <th>Assigned Patient(s)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for cg in caregivers %}
+              <tr>
+                <td>
+                  <div style="font-weight:600; color:#FFFFFF;">{{ cg.name }}</div>
+                  <div style="font-size:0.75rem; color:var(--text-muted);">{{ cg.email }}</div>
+                </td>
+                <td>{{ cg.phone or 'Not set' }}</td>
+                <td><span class="badge" style="background:rgba(96,165,250,0.15); color:#60A5FA;">{{ cg.preferred_channel or 'SMS' }}</span></td>
+                <td>
+                  {% if cg.assigned_patients %}
+                    <span style="color:#34D399; font-weight:600;">{{ cg.assigned_patients }}</span>
+                  {% else %}
+                    <span style="color:#F59E0B; font-size:0.8rem;">Unassigned</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% else %}
+              <tr>
+                <td colspan="4" style="text-align:center; padding:20px; color:var(--text-muted);">No caregivers registered yet.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Quick Assignment Form -->
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-title-box">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--cyan-accent)" stroke-width="2">
+              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+            </svg>
+            <h2 class="section-title">Link Caregiver to Patient</h2>
+          </div>
+        </div>
+
+        <form action="{{ url_for('admin_assign_caregiver') }}" method="POST">
+          <div class="form-group" style="margin-bottom:12px;">
+            <label class="form-label">Select Caregiver</label>
+            <select name="caregiver_id" class="auth-input no-left-icon" required style="padding-left:12px;">
+              <option value="">-- Choose Caregiver --</option>
+              {% for cg in caregivers %}
+                <option value="{{ cg.id }}">{{ cg.name }} ({{ cg.email }})</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="form-group" style="margin-bottom:12px;">
+            <label class="form-label">Assign to Patient</label>
+            <select name="patient_id" class="auth-input no-left-icon" required style="padding-left:12px;">
+              <option value="">-- Choose Patient --</option>
+              {% for p in patients %}
+                <option value="{{ p.id }}">{{ p.name }} ({{ p.email }})</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="form-group" style="margin-bottom:16px;">
+            <label class="form-label">Clinical / Family Relationship</label>
+            <input type="text" name="relationship" class="auth-input no-left-icon" placeholder="e.g. Primary Family Caregiver" value="Family Caregiver" style="padding-left:12px;">
+          </div>
+
+          <button type="submit" class="btn-cta" style="width:100%; justify-content:center; padding:9px;">
+            Establish Authorization Link
+          </button>
+        </form>
+      </div>
+
+    </div>
+
+    <!-- 3. NOTIFICATION DELIVERY AUDIT LOG -->
+    <div class="section-card" id="notificationLogs">
+      <div class="section-header" style="display:flex; justify-content:space-between; align-items:center;">
+        <div class="section-title-box">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#C084FC" stroke-width="2">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+          </svg>
+          <h2 class="section-title">Notification Delivery Audit Trail</h2>
+        </div>
+        <span style="font-size:0.8rem; color:var(--text-muted);">Real vs Simulated Gateway Log</span>
+      </div>
+
+      <div class="table-responsive">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Recipient Patient</th>
+              <th>Target Phone</th>
+              <th>Channel</th>
+              <th>Type</th>
+              <th>Status</th>
+              <th>Message Content</th>
+              <th>Timestamp</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for n in notifications_log %}
+            <tr>
+              <td><code>#{{ n.id }}</code></td>
+              <td style="font-weight:600; color:#FFFFFF;">{{ n.patient_name or 'System' }}</td>
+              <td><code>{{ n.recipient_phone or '-' }}</code></td>
+              <td>
+                <span class="badge" style="background:#1E293B; color:var(--cyan-accent);">
+                  {{ n.channel or 'IN_APP' }}
+                </span>
+              </td>
+              <td><span style="font-size:0.75rem;">{{ n.type }}</span></td>
+              <td>
+                {% if n.status == 'DELIVERED' or n.status == 'SENT' %}
+                  <span class="badge" style="background:rgba(16,185,129,0.15); color:#10B981;">✓ {{ n.status }}</span>
+                {% elif n.status == 'SIMULATED' %}
+                  <span class="badge" style="background:rgba(245,158,11,0.15); color:#F59E0B;" title="Simulated locally (Twilio/MSG91 env keys not set)">⚡ SIMULATED</span>
+                {% else %}
+                  <span class="badge" style="background:rgba(239,68,68,0.15); color:#EF4444;" title="{{ n.error_message }}">✗ FAILED</span>
+                {% endif %}
+              </td>
+              <td style="font-size:0.82rem; max-width:280px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="{{ n.message }}">
+                {{ n.message }}
+              </td>
+              <td style="font-size:0.78rem; color:var(--text-muted);">{{ n.created_at }}</td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="8" style="text-align:center; padding:20px; color:var(--text-muted);">No notification logs recorded.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+
+  <script>
+    function filterPatientTable() {
+      const q = document.getElementById('patientSearchInput').value.toLowerCase();
+      const rows = document.querySelectorAll('#patientsTable tbody tr');
+      rows.forEach(r => {
+        const text = r.textContent.toLowerCase();
+        r.style.display = text.includes(q) ? '' : 'none';
+      });
+    }
+  </script>
+
+  {% include 'medivoice_widget.html' %}
+  <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>

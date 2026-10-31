@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Choose an account &bull; Google Accounts</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <style>
+    .google-auth-body {
+      background: #202124;
+      font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      color: #E8EAED;
+    }
+    .google-card {
+      background: #303134;
+      border: 1px solid #3C4043;
+      border-radius: 8px;
+      width: 100%;
+      max-width: 448px;
+      padding: 36px 40px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+    }
+    .google-logo-box {
+      text-align: center;
+      margin-bottom: 16px;
+    }
+    .google-title {
+      font-size: 1.5rem;
+      font-weight: 400;
+      text-align: center;
+      margin-bottom: 8px;
+      color: #E8EAED;
+    }
+    .google-subtitle {
+      font-size: 0.95rem;
+      text-align: center;
+      color: #9AA0A6;
+      margin-bottom: 24px;
+    }
+    .google-account-list {
+      display: flex;
+      flex-direction: column;
+      border-top: 1px solid #3C4043;
+      margin-bottom: 20px;
+    }
+    .google-account-row {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 14px 12px;
+      border-bottom: 1px solid #3C4043;
+      background: transparent;
+      border-left: none;
+      border-right: none;
+      border-top: none;
+      width: 100%;
+      text-align: left;
+      cursor: pointer;
+      color: #E8EAED;
+      transition: background 0.15s ease;
+    }
+    .google-account-row:hover {
+      background: #3C4043;
+    }
+    .google-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      color: #FFFFFF;
+      font-size: 1rem;
+      flex-shrink: 0;
+    }
+    .google-account-info {
+      flex: 1;
+      overflow: hidden;
+    }
+    .google-name {
+      font-size: 0.9rem;
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .google-email {
+      font-size: 0.8rem;
+      color: #9AA0A6;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .google-oauth-notice {
+      background: #202124;
+      border: 1px solid #3C4043;
+      border-radius: 6px;
+      padding: 10px 12px;
+      font-size: 0.78rem;
+      color: #9AA0A6;
+      line-height: 1.45;
+      margin-top: 16px;
+    }
+  </style>
+</head>
+<body class="google-auth-body">
+
+  <div class="google-card">
+    
+    <div class="google-logo-box">
+      <!-- Official Google G SVG -->
+      <svg width="40" height="40" viewBox="0 0 24 24">
+        <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.65v3.05h3.9c2.27-2.1 3.645-5.18 3.645-9.14z"/>
+        <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.9-3.05c-1.08.72-2.45 1.16-4.03 1.16-3.1 0-5.74-2.1-6.68-4.92H1.21v3.15C3.25 21.44 7.33 24 12 24z"/>
+        <path fill="#FBBC05" d="M5.32 14.28c-.24-.72-.38-1.49-.38-2.28s.14-1.56.38-2.28V6.57H1.21C.44 8.11 0 9.99 0 12s.44 3.89 1.21 5.43l4.11-3.15z"/>
+        <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.25 2.56 1.21 6.57l4.11 3.15c.94-2.82 3.58-4.97 6.68-4.97z"/>
+      </svg>
+    </div>
+
+    <h1 class="google-title">Choose an account</h1>
+    <p class="google-subtitle">to continue to <strong>SmartMed Adherence System</strong></p>
+
+    <!-- Account Selection List -->
+    <div class="google-account-list">
+      
+      {% for acc in accounts %}
+      <form action="{{ url_for('login_google_callback') }}" method="POST" style="margin:0;">
+        <input type="hidden" name="state" value="{{ state }}">
+        <input type="hidden" name="email" value="{{ acc.email }}">
+        <input type="hidden" name="name" value="{{ acc.name }}">
+        <button type="submit" class="google-account-row">
+          <div class="google-avatar" style="background:{% if loop.index == 1 %}#1A73E8{% elif loop.index == 2 %}#137333{% else %}#A50E0E{% endif %};">
+            {{ acc.name[0] }}
+          </div>
+          <div class="google-account-info">
+            <div class="google-name">{{ acc.name }}</div>
+            <div class="google-email">{{ acc.email }} &bull; <span style="text-transform:capitalize;">{{ acc.role }}</span></div>
+          </div>
+        </button>
+      </form>
+      {% endfor %}
+
+      <!-- Use another account option -->
+      <button type="button" class="google-account-row" onclick="document.getElementById('customGoogleSection').style.display='block'; this.style.display='none';">
+        <div class="google-avatar" style="background:#5F6368;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2">
+            <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+          </svg>
+        </div>
+        <div class="google-account-info">
+          <div class="google-name">Use another account</div>
+          <div class="google-email">Sign in with a different Google account</div>
+        </div>
+      </button>
+
+    </div>
+
+    <!-- Hidden Custom Google Email Input Form -->
+    <div id="customGoogleSection" style="display:none; background:#202124; padding:16px; border-radius:6px; margin-bottom:16px;">
+      <form action="{{ url_for('login_google_callback') }}" method="POST">
+        <input type="hidden" name="state" value="{{ state }}">
+        
+        <div style="margin-bottom:10px;">
+          <label style="font-size:0.8rem; color:#9AA0A6; display:block; margin-bottom:4px;">Google Full Name</label>
+          <input type="text" name="name" placeholder="Your Name" required class="auth-input no-left-icon" style="background:#303134; color:#FFF; padding:8px 12px; width:100%; border:1px solid #3C4043; border-radius:4px;">
+        </div>
+
+        <div style="margin-bottom:14px;">
+          <label style="font-size:0.8rem; color:#9AA0A6; display:block; margin-bottom:4px;">Email or phone</label>
+          <input type="email" name="email" placeholder="user@gmail.com" required class="auth-input no-left-icon" style="background:#303134; color:#FFF; padding:8px 12px; width:100%; border:1px solid #3C4043; border-radius:4px;">
+        </div>
+
+        <div style="display:flex; justify-content:flex-end; gap:8px;">
+          <button type="button" class="btn-secondary" style="padding:6px 12px; font-size:0.82rem;" onclick="document.getElementById('customGoogleSection').style.display='none';">Cancel</button>
+          <button type="submit" class="btn-primary-auth" style="padding:6px 16px; font-size:0.82rem; width:auto;">Next</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="google-oauth-notice">
+      🔒 <strong>Google OAuth Protocol:</strong> <code>prompt=select_account consent</code> parameter is active. Automatic selection of previous accounts is strictly disabled.
+    </div>
+
+    <div style="text-align:center; margin-top:20px;">
+      <a href="{{ url_for('login') }}" style="color:#8AB4F8; font-size:0.85rem; text-decoration:none;">
+        Cancel and return to SmartMed
+      </a>
+    </div>
+
+  </div>
+
+</body>
+</html>

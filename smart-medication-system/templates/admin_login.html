@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Portal Login | SmartMed</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="auth-page-body">
+
+  <header class="auth-top-nav">
+    <div class="auth-nav-container">
+      <div class="auth-nav-brand">
+        <div class="brand-icon-box" style="background:linear-gradient(135deg, #EF4444 0%, #B91C1C 100%);">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          </svg>
+        </div>
+        <div>
+          <span class="brand-name">SmartMed</span>
+          <span class="brand-tag" style="background:rgba(239,68,68,0.2); color:#FCA5A5;">Security Gateway</span>
+        </div>
+      </div>
+
+      <div class="auth-nav-actions">
+        <a href="{{ url_for('login') }}" class="btn-secondary" style="font-size:0.82rem; padding:6px 14px;">
+          ← Back to Patient / Caregiver Login
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <div class="auth-wrapper" style="min-height: calc(100vh - 80px);">
+    <div class="auth-card" style="max-width: 880px;">
+      
+      <!-- LEFT PROMOTIONAL PANEL -->
+      <div class="auth-left" style="background: linear-gradient(145deg, #1E1B4B 0%, #0F172A 100%);">
+        <div class="auth-left-top">
+          <span style="display:inline-flex; align-items:center; gap:6px; background:rgba(239,68,68,0.2); color:#FCA5A5; padding:4px 12px; border-radius:20px; font-size:0.75rem; font-weight:700; letter-spacing:0.05em; text-transform:uppercase;">
+            🛡️ Administrative Zone
+          </span>
+        </div>
+
+        <div class="auth-left-center">
+          <h1 class="auth-left-heading" style="color:#FFFFFF;">System Administrator<br>&amp; Clinical Governance</h1>
+          <p class="auth-left-subtext">
+            Restricted access portal for authorized clinical administrators. Audit all registered patients, caregivers, system-wide adherence metrics, and notification delivery logs.
+          </p>
+        </div>
+
+        <div class="auth-left-bottom">
+          <div class="brand-pill" style="border-color:rgba(239,68,68,0.3); background:rgba(239,68,68,0.1); color:#FCA5A5;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+            <span>Role-Based Access Control Enforced</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT AUTHENTICATION PANEL -->
+      <div class="auth-right">
+        <div class="auth-form-container">
+          
+          <div class="auth-header">
+            <h2 class="auth-title">Admin Sign In</h2>
+            <p class="auth-subtitle">Enter privileged credentials to access governance dashboard</p>
+          </div>
+
+          <!-- Flash Messages -->
+          {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+              {% for category, message in messages %}
+                <div class="flash-banner {{ category }}">
+                  {% if category == 'error' %}
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                  {% else %}
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                  {% endif %}
+                  <span>{{ message }}</span>
+                </div>
+              {% endfor %}
+            {% endif %}
+          {% endwith %}
+
+          <form action="{{ url_for('admin_login') }}" method="POST" class="auth-form">
+            
+            <!-- Email -->
+            <div class="form-group">
+              <label class="form-label" for="email">Admin Email Address</label>
+              <div class="input-container">
+                <svg class="input-icon-left" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect width="20" height="16" x="2" y="4" rx="2"/>
+                  <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
+                </svg>
+                <input type="email" id="email" name="email" class="auth-input" placeholder="admin@smartmed.com" value="{{ email or '' }}" required autocomplete="email">
+              </div>
+            </div>
+
+            <!-- Password -->
+            <div class="form-group">
+              <label class="form-label" for="password">Security Password</label>
+              <div class="input-container">
+                <svg class="input-icon-left" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+                <input type="password" id="password" name="password" class="auth-input" placeholder="Enter administrative password" required autocomplete="current-password">
+              </div>
+            </div>
+
+            <button type="submit" class="btn-primary-auth" style="background:linear-gradient(135deg, #DC2626 0%, #991B1B 100%);">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              </svg>
+              <span>Authenticate as Administrator</span>
+            </button>
+
+            <div class="auth-toggle-link" style="margin-top:20px;">
+              <span>Not an administrator?</span>
+              <a href="{{ url_for('login') }}">Return to Patient Login</a>
+            </div>
+
+          </form>
+
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  {% include 'medivoice_widget.html' %}
+  <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>
