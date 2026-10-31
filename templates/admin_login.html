@@ -62,9 +62,27 @@
       <div class="auth-right">
         <div class="auth-form-container">
           
+          <!-- ADMIN ROLE / ACTION TABS -->
+          <div class="role-selector-tabs" style="margin-bottom:20px; grid-template-columns: 1fr 1fr;">
+            <a href="{{ url_for('admin_login') }}" class="role-tab-btn {{ 'active' if not is_signup else '' }}" style="text-decoration:none; justify-content:center; gap:8px;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/>
+              </svg>
+              <span>Admin Sign In</span>
+            </a>
+            <a href="{{ url_for('admin_signup') }}" class="role-tab-btn {{ 'active' if is_signup else '' }}" style="text-decoration:none; justify-content:center; gap:8px;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/>
+              </svg>
+              <span>Admin Sign Up</span>
+            </a>
+          </div>
+
           <div class="auth-header">
-            <h2 class="auth-title">Admin Sign In</h2>
-            <p class="auth-subtitle">Enter privileged credentials to access governance dashboard</p>
+            <h2 class="auth-title">{{ 'Register Administrator' if is_signup else 'Admin Sign In' }}</h2>
+            <p class="auth-subtitle">
+              {{ 'Create privileged administrative account for clinical governance' if is_signup else 'Enter privileged credentials to access governance dashboard' }}
+            </p>
           </div>
 
           <!-- Flash Messages -->
@@ -83,8 +101,32 @@
             {% endif %}
           {% endwith %}
 
-          <form action="{{ url_for('admin_login') }}" method="POST" class="auth-form">
+          <form action="{{ url_for('admin_signup' if is_signup else 'admin_login') }}" method="POST" class="auth-form">
             
+            {% if is_signup %}
+            <!-- Full Name (for signup) -->
+            <div class="form-group">
+              <label class="form-label" for="name">Admin Full Name</label>
+              <div class="input-container">
+                <svg class="input-icon-left" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                </svg>
+                <input type="text" id="name" name="name" class="auth-input" placeholder="e.g. Dr. Vasudeva Reddy" value="{{ name or '' }}" required>
+              </div>
+            </div>
+
+            <!-- Mobile Phone (for emergency alerts) -->
+            <div class="form-group">
+              <label class="form-label" for="phone">Mobile Phone (Alert Notifications)</label>
+              <div class="input-container">
+                <svg class="input-icon-left" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+                </svg>
+                <input type="tel" id="phone" name="phone" class="auth-input" placeholder="e.g. 9989372530" value="{{ phone or '9989372530' }}" pattern="^(?:\+?91[\-\s]?)?[6-9]\d{9}$">
+              </div>
+            </div>
+            {% endif %}
+
             <!-- Email -->
             <div class="form-group">
               <label class="form-label" for="email">Admin Email Address</label>
@@ -93,7 +135,7 @@
                   <rect width="20" height="16" x="2" y="4" rx="2"/>
                   <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
                 </svg>
-                <input type="email" id="email" name="email" class="auth-input" placeholder="admin@smartmed.com" value="{{ email or '' }}" required autocomplete="email">
+                <input type="email" id="email" name="email" class="auth-input" placeholder="vasudevareddyeevuri@gmail.com" value="{{ email or '' }}" required autocomplete="email">
               </div>
             </div>
 
@@ -105,20 +147,44 @@
                   <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/>
                   <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
                 </svg>
-                <input type="password" id="password" name="password" class="auth-input" placeholder="Enter administrative password" required autocomplete="current-password">
+                <input type="password" id="password" name="password" class="auth-input" placeholder="Enter administrative password" required autocomplete="{{ 'new-password' if is_signup else 'current-password' }}">
               </div>
             </div>
+
+            {% if is_signup %}
+            <!-- Confirm Password -->
+            <div class="form-group">
+              <label class="form-label" for="confirm_password">Confirm Password</label>
+              <div class="input-container">
+                <svg class="input-icon-left" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+                <input type="password" id="confirm_password" name="confirm_password" class="auth-input" placeholder="Confirm administrative password" required autocomplete="new-password">
+              </div>
+            </div>
+            {% endif %}
 
             <button type="submit" class="btn-primary-auth" style="background:linear-gradient(135deg, #DC2626 0%, #991B1B 100%);">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
               </svg>
-              <span>Authenticate as Administrator</span>
+              <span>{{ 'Create Administrator Account' if is_signup else 'Authenticate as Administrator' }}</span>
             </button>
 
             <div class="auth-toggle-link" style="margin-top:20px;">
+              {% if is_signup %}
+                <span>Already registered as administrator?</span>
+                <a href="{{ url_for('admin_login') }}">Admin Sign In</a>
+              {% else %}
+                <span>Need an administrator account?</span>
+                <a href="{{ url_for('admin_signup') }}">Admin Sign Up</a>
+              {% endif %}
+            </div>
+
+            <div class="auth-toggle-link" style="margin-top:8px;">
               <span>Not an administrator?</span>
-              <a href="{{ url_for('login') }}">Return to Patient Login</a>
+              <a href="{{ url_for('login') }}">Return to Patient / Caregiver Login</a>
             </div>
 
           </form>

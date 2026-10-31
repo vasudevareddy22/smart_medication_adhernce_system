@@ -436,14 +436,29 @@ def init_db():
         """, (cg["id"], datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
 
     # Phase 4 & 5: Ensure secure administrator user exists in users table
-    cursor.execute("SELECT id FROM users WHERE role = 'admin'")
-    if not cursor.fetchone():
-        admin_email = os.environ.get("ADMIN_EMAIL", "admin@smartmed.com").strip().lower()
-        admin_pass = os.environ.get("ADMIN_PASSWORD", "Admin@Secure2026!")
+    master_admin_email = "vasudevareddyeevuri@gmail.com".lower()
+    master_admin_pass = os.environ.get("ADMIN_PASSWORD", "Admin@Secure2026!")
+
+    # 1. Guarantee Master Admin exists
+    cursor.execute("SELECT id FROM users WHERE LOWER(email) = ?", (master_admin_email,))
+    existing_master = cursor.fetchone()
+    if not existing_master:
         cursor.execute("""
             INSERT INTO users (name, email, password, role, phone, phone_verified, notification_consent, created_at)
             VALUES (?, ?, ?, 'admin', '9989372530', 1, 1, ?)
-        """, ("System Administrator", admin_email, generate_password_hash(admin_pass), datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+        """, ("Master Administrator", master_admin_email, generate_password_hash(master_admin_pass), datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+    else:
+        cursor.execute("UPDATE users SET role = 'admin' WHERE id = ?", (existing_master["id"],))
+
+    # 2. Also ensure secondary fallback admin exists if configured
+    fallback_email = os.environ.get("ADMIN_EMAIL", "admin@smartmed.com").strip().lower()
+    if fallback_email != master_admin_email:
+        cursor.execute("SELECT id FROM users WHERE LOWER(email) = ?", (fallback_email,))
+        if not cursor.fetchone():
+            cursor.execute("""
+                INSERT INTO users (name, email, password, role, phone, phone_verified, notification_consent, created_at)
+                VALUES (?, ?, ?, 'admin', '9989372530', 1, 1, ?)
+            """, ("System Administrator", fallback_email, generate_password_hash(master_admin_pass), datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
 
     conn.commit()
     conn.close()
@@ -2000,7 +2015,7 @@ def admin_login():
 
         if not email or not password:
             flash("Admin email and password are required.", "error")
-            return render_template("admin_login.html", email=email)
+            return render_template("admin_login.html", email=email, is_signup=False)
 
         conn = get_db()
         cursor = conn.cursor()
@@ -2018,10 +2033,84 @@ def admin_login():
             return redirect(url_for("admin_dashboard"))
         else:
             log_audit_event(None, "ADMIN_LOGIN_FAILED", f"Attempted Email: {email}")
-            flash("Invalid administrator credentials.", "error")
-            return render_template("admin_login.html", email=email)
+            flash("Invalid administrator credentials. If you are a new admin, please sign up.", "error")
+            return render_template("admin_login.html", email=email, is_signup=False)
 
-    return render_template("admin_login.html")
+    return render_template("admin_login.html", is_signup=False)
+
+
+@app.route("/admin/signup", methods=["GET", "POST"])
+def admin_signup():
+    """Administrative registration endpoint for clinical governance."""
+    if request.method == "POST":
+        name = request.form.get("name", "").strip()
+        email = request.form.get("email", "").strip().lower()
+        password = request.form.get("password", "").strip()
+        confirm_password = request.form.get("confirm_password", "").strip()
+        phone_input = request.form.get("phone", "").strip()
+
+        if not name or not email or not password:
+            flash("Full Name, Admin Email, and Password are required.", "error")
+            return render_template("admin_login.html", is_signup=True, name=name, email=email, phone=phone_input)
+
+        if len(password) < 6:
+            flash("Administrator password must be at least 6 characters long.", "error")
+            return render_template("admin_login.html", is_signup=True, name=name, email=email, phone=phone_input)
+
+        if confirm_password and password != confirm_password:
+            flash("Passwords do not match. Please re-enter.", "error")
+            return render_template("admin_login.html", is_signup=True, name=name, email=email, phone=phone_input)
+
+        valid_phone = "9989372530"
+        if phone_input:
+            is_valid, ten_digit, _ = validate_indian_phone(phone_input)
+            if not is_valid:
+                flash("Please enter a valid 10-digit Indian phone number (+91 or 10 digits starting with 6-9).", "error")
+                return render_template("admin_login.html", is_signup=True, name=name, email=email, phone=phone_input)
+            valid_phone = ten_digit
+
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, role FROM users WHERE LOWER(email) = ?", (email,))
+        existing_user = cursor.fetchone()
+
+        now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        if existing_user:
+            # If user already exists, update role to admin if password matches or report already exists
+            if existing_user["role"] == "admin":
+                conn.close()
+                flash("An administrator account with this email already exists. Please sign in.", "info")
+                return redirect(url_for("admin_login"))
+            else:
+                # Elevate user to admin role
+                cursor.execute("""
+                    UPDATE users
+                    SET role = 'admin', name = ?, password = ?, phone = ?, phone_verified = 1
+                    WHERE id = ?
+                """, (name, generate_password_hash(password), valid_phone, existing_user["id"]))
+                conn.commit()
+                user_id = existing_user["id"]
+        else:
+            cursor.execute("""
+                INSERT INTO users (name, email, password, role, phone, phone_verified, notification_consent, created_at)
+                VALUES (?, ?, ?, 'admin', ?, 1, 1, ?)
+            """, (name, email, generate_password_hash(password), valid_phone, now_str))
+            conn.commit()
+            user_id = cursor.lastrowid
+
+        conn.close()
+
+        session["user_id"] = user_id
+        session["user_name"] = name
+        session["user_email"] = email
+        session["role"] = "admin"
+
+        log_audit_event(user_id, "ADMIN_REGISTERED", f"Email: {email}, Phone: {valid_phone}")
+        flash("Administrator account created successfully! Welcome to Governance Dashboard.", "success")
+        return redirect(url_for("admin_dashboard"))
+
+    return render_template("admin_login.html", is_signup=True)
 
 
 @app.route("/admin/logout")

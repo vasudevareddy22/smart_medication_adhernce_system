@@ -614,32 +614,61 @@ class SystemAdherenceTestSuite(unittest.TestCase):
         print("[PASS] TC26 - Notification Engine Dispatch & Simulated Delivery Logging")
 
     def test_tc27_admin_authentication_and_session(self):
-        """TC27 - Test separate admin authentication and role session."""
+        """TC27 - Test separate admin authentication, master admin login, and admin signup flow."""
         with self.client.session_transaction() as sess:
             sess.clear()
 
         # Failed login with wrong password
         res_fail = self.client.post('/admin/login', data={
-            'email': 'admin@smartmed.com',
+            'email': 'vasudevareddyeevuri@gmail.com',
             'password': 'WrongPassword123'
         }, follow_redirects=True)
         self.assertEqual(res_fail.status_code, 200)
         self.assertIn(b"Invalid administrator credentials", res_fail.data)
 
-        # Successful admin login
-        res_success = self.client.post('/admin/login', data={
-            'email': 'admin@smartmed.com',
+        # Successful Master Admin login (vasudevareddyeevuri@gmail.com)
+        res_master = self.client.post('/admin/login', data={
+            'email': 'vasudevareddyeevuri@gmail.com',
             'password': 'Admin@Secure2026!'
         }, follow_redirects=True)
-        self.assertEqual(res_success.status_code, 200)
-        self.assertIn(b"Governance Overview", res_success.data)
-        self.assertIn(b"Patient Directory", res_success.data)
+        self.assertEqual(res_master.status_code, 200)
+        self.assertIn(b"Governance Overview", res_master.data)
+        self.assertIn(b"Patient Directory", res_master.data)
+        self.assertIn(b"vasudevareddyeevuri@gmail.com", res_master.data)
+        self.assertIn(b"Master", res_master.data)
 
         # Admin logout
         res_logout = self.client.get('/admin/logout', follow_redirects=True)
         self.assertEqual(res_logout.status_code, 200)
         self.assertIn(b"Administrator session closed", res_logout.data)
-        print("[PASS] TC27 - Separate Admin Authentication & Session Management")
+
+        # Test Admin Sign Up endpoint
+        res_signup_page = self.client.get('/admin/signup')
+        self.assertEqual(res_signup_page.status_code, 200)
+        self.assertIn(b"Register Administrator", res_signup_page.data)
+        self.assertIn(b"Admin Sign Up", res_signup_page.data)
+
+        # Test creating new admin through /admin/signup
+        res_new_admin = self.client.post('/admin/signup', data={
+            'name': 'Clinical Supervisor',
+            'email': 'supervisor@smartmed.com',
+            'phone': '9989372530',
+            'password': 'SupervisorPassword123!',
+            'confirm_password': 'SupervisorPassword123!'
+        }, follow_redirects=True)
+        self.assertEqual(res_new_admin.status_code, 200)
+        self.assertIn(b"Governance Overview", res_new_admin.data)
+        self.assertIn(b"supervisor@smartmed.com", res_new_admin.data)
+
+        # Test logging in with newly registered admin
+        self.client.get('/admin/logout')
+        res_relogin = self.client.post('/admin/login', data={
+            'email': 'supervisor@smartmed.com',
+            'password': 'SupervisorPassword123!'
+        }, follow_redirects=True)
+        self.assertEqual(res_relogin.status_code, 200)
+        self.assertIn(b"Governance Overview", res_relogin.data)
+        print("[PASS] TC27 - Master Admin Login, Admin Sign Up, and Authentication Flow")
 
     def test_tc28_admin_role_access_control(self):
         """TC28 - Test strict 403 Forbidden enforcement on admin dashboard for patients and caregivers."""
