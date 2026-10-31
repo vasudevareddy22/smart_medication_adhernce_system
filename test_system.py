@@ -266,6 +266,13 @@ class SystemAdherenceTestSuite(unittest.TestCase):
     def test_tc14_medivoice_patient_today_medicines(self):
         """TC14 - Verify MediVoice returns today's medications from actual DB records."""
         self.client.post('/login', data={'email': 'patient@test.com', 'password': 'patient123'})
+        conn = get_db()
+        cur = conn.cursor()
+        next_month = (date.today() + timedelta(days=30)).strftime('%Y-%m-%d')
+        cur.execute("UPDATE medications SET end_date = ? WHERE patient_id = 1", (next_month,))
+        conn.commit()
+        conn.close()
+
         res = self.client.post('/api/medivoice/chat', json={
             'message': 'What medicines do I need to take today?'
         })

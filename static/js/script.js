@@ -309,6 +309,9 @@ document.addEventListener('DOMContentLoaded', () => {
   // Initialize Speech Recognition
   initSpeechRecognition();
 
+  // Check microphone permission state on load (silent check)
+  checkMicPermissionStatus(true);
+
   // Enter key support for MediVoice text input
   const textInput = document.getElementById('medivoiceInput');
   if (textInput) {
@@ -465,9 +468,11 @@ function renderQuickPromptChips() {
 }
 
 /**
- * Track mic permission status across session
+ * Track mic permission and hardware availability status across session
  */
 let micPermissionGranted = false;
+let micHardwareVerified = false;
+let micDeviceLabel = '';
 
 /**
  * Initialize Web Speech API SpeechRecognition with Multilingual Support
@@ -530,11 +535,16 @@ function initSpeechRecognition() {
     let msg = 'Voice recognition error.';
     if (event.error === 'not-allowed') {
       micPermissionGranted = false;
+      micHardwareVerified = false;
       openMediVoicePermissionModal();
       updatePermissionAlert('denied');
-      msg = 'Microphone permission blocked. Click the lock icon (🔒) in your address bar and set Microphone to "Allow".';
+      msg = 'Microphone permission blocked. In Chrome address bar next to 127.0.0.1:5000, click the tune/lock icon and set Microphone to "Allow".';
     } else if (event.error === 'no-speech') {
-      msg = 'No speech was detected. Please click the microphone button again or type your message.';
+      msg = 'No speech was detected. Click the mic button to try again, or type your message below.';
+    } else if (event.error === 'audio-capture') {
+      micHardwareVerified = false;
+      updatePermissionAlert('unsupported', 'Audio capture failed. Check microphone hardware.');
+      msg = 'No microphone was found or microphone is in use by another app.';
     } else if (event.error === 'network') {
       msg = 'Speech recognition network error. Please verify your internet connection or use typed chat.';
     }
@@ -573,52 +583,78 @@ function toggleMediVoice() {
 }
 
 /**
- * Trigger voice listening with explicit permission prompt resolution
+ * Trigger voice listening with start/stop toggle and hardware verification
  */
 async function toggleListening() {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SpeechRecognition) {
-    alert('Speech recognition is not supported in this browser. Please use the text input below to chat with MediVoice.');
+    alert('Web Speech API is not supported in this browser. Please type your message into the text box below.');
+    const input = document.getElementById('medivoiceInput');
+    if (input) input.focus();
     return;
   }
 
   // If assistant is currently speaking, stop it first
   stopSpeaking();
 
+  // If already listening, stop speech recognition cleanly
   if (isListening) {
-    if (recognition) recognition.stop();
+    if (recognition) {
+      try {
+        recognition.stop();
+      } catch (e) {
+        console.warn('Error stopping recognition:', e);
+      }
+    }
+    isListening = false;
+    updateMediVoiceStatus('idle', 'Online • Ready');
+    const micBtn = document.getElementById('medivoiceMicBtn');
+    if (micBtn) micBtn.classList.remove('listening');
+    const preview = document.getElementById('medivoiceLivePreview');
+    if (preview) preview.classList.remove('active');
     return;
   }
 
-  // 1. Proactively prompt user via getUserMedia if not yet explicitly granted.
-  // This explicitly triggers the browser's native "Allow this site to use your microphone?" dialog!
-  if (!micPermissionGranted && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+  // If microphone hardware has not been verified yet, test/request access now
+  if (!micHardwareVerified) {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      // Stop media tracks immediately so speech recognition has exclusive audio access
-      stream.getTracks().forEach(t => t.stop());
-      micPermissionGranted = true;
+      await testMicrophoneHardware(false);
     } catch (err) {
-      console.warn('getUserMedia prompt error:', err);
+      const errInfo = handleMediaError(err);
       if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
         openMediVoicePermissionModal();
-        updatePermissionAlert('denied');
-        appendMediVoiceMessage('assistant', '⚠️ Microphone permission is blocked by your browser for localhost:5000. Please click the lock icon (🔒) in your address bar, set Microphone to "Allow", and reload.');
-        return;
       }
+      appendMediVoiceMessage('assistant', `⚠️ ${errInfo.message}`);
+      return;
     }
   }
 
-  // 2. Start speech recognition in selected language
+  // Start speech recognition in selected language
   try {
     if (!recognition) initSpeechRecognition();
     recognition.lang = currentLang;
     recognition.start();
   } catch (err) {
     console.warn('Recognition start error:', err);
-    if (err.name === 'NotAllowedError') {
+    if (err.name === 'InvalidStateError') {
+      // Recognition already running or transitioning; restart safely
+      try {
+        recognition.stop();
+        setTimeout(() => {
+          try {
+            recognition.lang = currentLang;
+            recognition.start();
+          } catch (retryErr) {
+            console.warn('Retry recognition start failed:', retryErr);
+          }
+        }, 150);
+      } catch (ignore) {}
+    } else if (err.name === 'NotAllowedError') {
+      micPermissionGranted = false;
+      micHardwareVerified = false;
       openMediVoicePermissionModal();
       updatePermissionAlert('denied');
+      appendMediVoiceMessage('assistant', '⚠️ Microphone permission is blocked in your browser.');
     }
   }
 }
@@ -970,7 +1006,7 @@ function openMediVoicePermissionModal() {
   const modal = document.getElementById('medivoicePermissionModal');
   if (modal) {
     modal.classList.add('active');
-    checkMicPermissionStatus();
+    checkMicPermissionStatus(true);
 
     // Sync sliders
     const rate = localStorage.getItem('medivoice_rate') || '1.0';
@@ -995,67 +1031,227 @@ function closeMediVoicePermissionModal() {
   if (modal) modal.classList.remove('active');
 }
 
-async function checkMicPermissionStatus() {
+/**
+ * Check navigator.permissions.query({name: 'microphone'}) when supported
+ */
+async function checkMicPermissionStatus(triggerTrackCheckIfGranted = false) {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    updatePermissionAlert('unsupported', 'MediaDevices audio API is not supported in this browser.');
+    return;
+  }
+
   if (navigator.permissions && navigator.permissions.query) {
     try {
       const perm = await navigator.permissions.query({ name: 'microphone' });
-      updatePermissionAlert(perm.state);
-      perm.onchange = () => updatePermissionAlert(perm.state);
+      
+      if (perm.state === 'granted') {
+        if (triggerTrackCheckIfGranted && !micHardwareVerified) {
+          testMicrophoneHardware(false).catch(() => {});
+        } else if (micHardwareVerified) {
+          updatePermissionAlert('granted');
+        } else {
+          testMicrophoneHardware(false).catch(() => {
+            updatePermissionAlert('granted');
+          });
+        }
+      } else {
+        updatePermissionAlert(perm.state);
+      }
+
+      perm.onchange = () => {
+        if (perm.state === 'granted') {
+          testMicrophoneHardware(false).catch(() => {});
+        } else {
+          updatePermissionAlert(perm.state);
+        }
+      };
+      return;
     } catch (e) {
-      console.warn('Permissions query not supported:', e);
+      console.warn('navigator.permissions.query for microphone not supported or threw:', e);
     }
+  }
+
+  // Fallback if navigator.permissions.query is not supported
+  if (!micHardwareVerified) {
+    updatePermissionAlert('prompt');
   }
 }
 
-function updatePermissionAlert(state) {
+/**
+ * Display actual permission state: Granted, Denied, Prompt, or Unsupported
+ * Do not show Microphone Ready merely because permission was granted; verify actual microphone availability
+ */
+function updatePermissionAlert(state, detail) {
   const icon = document.getElementById('micStatusIcon');
   const title = document.getElementById('micStatusTitle');
   const desc = document.getElementById('micStatusDesc');
+  const pill = document.getElementById('micStatusPill');
   const btn = document.getElementById('btnRequestMicAccess');
+  const btnText = document.getElementById('btnRequestMicAccessText');
+  const hwBadge = document.getElementById('micHardwareBadge');
+  const hwName = document.getElementById('micHardwareName');
   if (!title || !desc) return;
 
   if (state === 'granted') {
     micPermissionGranted = true;
+    if (pill) {
+      pill.className = 'mic-status-pill granted';
+      pill.textContent = 'Granted';
+    }
     if (icon) icon.textContent = '✅';
-    title.textContent = 'Microphone Access: Allowed & Ready';
+    title.textContent = 'Microphone Ready';
     title.style.color = '#10B981';
-    desc.textContent = 'Your browser has granted microphone access. You can click the mic button and speak anytime.';
-    if (btn) btn.innerHTML = '<span>✅ Microphone Ready (Click to Test)</span>';
+    desc.textContent = 'Microphone access is authorized and active. You can speak to MediVoice anytime in English, Hindi, Telugu, or Tamil.';
+    if (btnText) btnText.textContent = micDeviceLabel ? `✓ Microphone Ready (${micDeviceLabel})` : '✓ Microphone Ready (Click to Retest)';
+    if (hwBadge) hwBadge.classList.add('verified');
+    if (hwName) hwName.textContent = micDeviceLabel ? `Live & Enabled (${micDeviceLabel})` : 'Live & Enabled';
   } else if (state === 'denied') {
     micPermissionGranted = false;
+    micHardwareVerified = false;
+    if (pill) {
+      pill.className = 'mic-status-pill denied';
+      pill.textContent = 'Denied';
+    }
     if (icon) icon.textContent = '❌';
     title.textContent = 'Microphone Access: Blocked';
     title.style.color = '#EF4444';
-    desc.innerHTML = 'Microphone access is blocked by your browser. Click the padlock (🔒) icon in your browser address bar next to <code>localhost:5000</code> and change Microphone to <strong>"Allow"</strong>, then reload.';
-    if (btn) btn.innerHTML = '<span>🔒 Blocked — Allow via Address Bar Lock Icon</span>';
-  } else {
+    desc.innerHTML = 'Microphone access is blocked by your browser. In Chrome address bar next to <code>127.0.0.1:5000</code>, click the <strong>Tune / Settings icon (🎛️)</strong> or <strong>Lock icon (🔒)</strong>, change Microphone to <strong>"Allow"</strong>, then reload.';
+    if (btnText) btnText.textContent = '🔒 Blocked — Enable in Chrome Settings';
+    if (hwBadge) hwBadge.classList.remove('verified');
+    if (hwName) hwName.textContent = 'Access blocked';
+  } else if (state === 'unsupported') {
+    micPermissionGranted = false;
+    micHardwareVerified = false;
+    if (pill) {
+      pill.className = 'mic-status-pill unsupported';
+      pill.textContent = 'Unsupported';
+    }
     if (icon) icon.textContent = '⚠️';
-    title.textContent = 'Microphone Access: Not Yet Granted';
+    title.textContent = 'Microphone Unsupported / Unavailable';
+    title.style.color = '#94A3B8';
+    desc.textContent = detail || 'Microphone API or hardware is not accessible. You can still use typed chat to talk with MediVoice.';
+    if (btnText) btnText.textContent = '⚠️ Hardware Unavailable (Use Typed Chat)';
+    if (hwBadge) hwBadge.classList.remove('verified');
+    if (hwName) hwName.textContent = detail || 'Unavailable';
+  } else {
+    // state === 'prompt'
+    micPermissionGranted = false;
+    micHardwareVerified = false;
+    if (pill) {
+      pill.className = 'mic-status-pill prompt';
+      pill.textContent = 'Prompt';
+    }
+    if (icon) icon.textContent = '🎙️';
+    title.textContent = 'Microphone Permission: Prompt Required';
     title.style.color = '#F59E0B';
-    desc.textContent = 'Click "Request / Test Microphone Access" below to trigger the browser prompt and allow microphone use.';
-    if (btn) btn.innerHTML = '<span>🎙️ Request / Test Microphone Access</span>';
+    desc.textContent = 'Browser permission has not yet been requested. Click "Request / Test Microphone Access" below to trigger the browser prompt and verify microphone hardware.';
+    if (btnText) btnText.textContent = '🎙️ Request / Test Microphone Access';
+    if (hwBadge) hwBadge.classList.remove('verified');
+    if (hwName) hwName.textContent = 'Pending user click';
   }
 }
 
-async function requestMicPermissionExplicitly() {
+/**
+ * Verify actual microphone hardware and audio input track
+ * Stops diagnostic audio tracks immediately after verification
+ */
+async function testMicrophoneHardware(isUserInitiated = false) {
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    alert('MediaDevices API is not supported in this browser. Please use typed chat.');
-    return;
+    updatePermissionAlert('unsupported', 'Audio input API is not supported in this browser.');
+    throw { name: 'SecurityError', message: 'getUserMedia not supported or not in secure context.' };
   }
 
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  const tracks = stream.getAudioTracks();
+
+  if (!tracks || tracks.length === 0) {
+    tracks.forEach(t => t.stop());
+    throw { name: 'NotFoundError', message: 'No audio input tracks found.' };
+  }
+
+  const primaryTrack = tracks[0];
+  if (!primaryTrack.enabled || primaryTrack.readyState !== 'live') {
+    tracks.forEach(t => t.stop());
+    throw { name: 'NotReadableError', message: 'Microphone track is not enabled or not live.' };
+  }
+
+  const trackLabel = primaryTrack.label || 'Default Audio Input';
+
+  // Requirement 8: Stop diagnostic audio tracks immediately after testing
+  tracks.forEach(t => t.stop());
+
+  micPermissionGranted = true;
+  micHardwareVerified = true;
+  micDeviceLabel = trackLabel;
+
+  // Requirement 6 & 14: Display Microphone Ready only after hardware track verification
+  updatePermissionAlert('granted', `Verified audio track: ${trackLabel}`);
+
+  if (isUserInitiated) {
+    speakText("Microphone access is verified and ready. MediVoice is listening.", currentLang);
+  }
+  return true;
+}
+
+/**
+ * Handle NotAllowedError, NotFoundError, NotReadableError, SecurityError, and InvalidStateError separately
+ */
+function handleMediaError(err) {
+  console.warn('Microphone error diagnostic:', err);
+  micHardwareVerified = false;
+
+  const errName = err.name || '';
+  if (errName === 'NotAllowedError' || errName === 'PermissionDeniedError') {
+    micPermissionGranted = false;
+    updatePermissionAlert('denied', 'Microphone permission was denied by the user or browser.');
+    return {
+      type: 'NotAllowedError',
+      message: 'Microphone permission is blocked. In Chrome address bar next to 127.0.0.1:5000, click the tune/lock icon and set Microphone to "Allow".'
+    };
+  } else if (errName === 'NotFoundError' || errName === 'DevicesNotFoundError') {
+    updatePermissionAlert('unsupported', 'No physical microphone hardware detected.');
+    return {
+      type: 'NotFoundError',
+      message: 'No physical microphone hardware detected. Please plug in a microphone or headset.'
+    };
+  } else if (errName === 'NotReadableError' || errName === 'TrackStartError') {
+    updatePermissionAlert('denied', 'Microphone hardware is busy or in use by another app.');
+    return {
+      type: 'NotReadableError',
+      message: 'Microphone is currently in use by another application (e.g. Zoom, MS Teams) or blocked in Windows Privacy Settings.'
+    };
+  } else if (errName === 'SecurityError') {
+    updatePermissionAlert('unsupported', 'Microphone access restricted by security policy.');
+    return {
+      type: 'SecurityError',
+      message: 'Security error: Microphone access is prohibited by browser document security policy or context.'
+    };
+  } else if (errName === 'InvalidStateError') {
+    return {
+      type: 'InvalidStateError',
+      message: 'Microphone is in an invalid state. Please try clicking the microphone button again.'
+    };
+  } else {
+    updatePermissionAlert('unsupported', err.message || 'Unknown microphone error');
+    return {
+      type: 'Error',
+      message: err.message || 'An unexpected microphone error occurred.'
+    };
+  }
+}
+
+/**
+ * Triggered explicitly from modal "Request / Test Microphone Access" button
+ */
+async function requestMicPermissionExplicitly() {
+  const btnText = document.getElementById('btnRequestMicAccessText');
+  if (btnText) btnText.textContent = 'Testing microphone hardware...';
+
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    stream.getTracks().forEach(t => t.stop());
-    updatePermissionAlert('granted');
-    speakText("Microphone permission has been granted. MediVoice is ready for your voice.", currentLang);
+    await testMicrophoneHardware(true);
   } catch (err) {
-    console.error('Explicit getUserMedia error:', err);
-    if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-      updatePermissionAlert('denied');
-      alert("Microphone permission is blocked in your browser. To enable speaking, click the lock (🔒) icon next to localhost:5000 in your browser address bar and switch Microphone to 'Allow'.");
-    } else {
-      alert("Microphone device error: " + err.message);
-    }
+    const errInfo = handleMediaError(err);
+    alert(errInfo.message);
   }
 }
 
