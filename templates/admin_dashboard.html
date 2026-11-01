@@ -8,49 +8,55 @@
 </head>
 <body class="app-layout">
 
-  <!-- TOP NAVBAR -->
-  <header class="navbar" style="border-bottom: 1px solid rgba(239, 68, 68, 0.25);">
-    <a href="{{ url_for('admin_dashboard') }}" class="nav-brand">
-      <div class="brand-icon-box" style="background: linear-gradient(135deg, #DC2626 0%, #991B1B 100%);">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-        </svg>
-      </div>
-      <div>
-        <span class="brand-name">SmartMed</span>
-        <span class="brand-tag" style="background:rgba(239,68,68,0.2); color:#FCA5A5;">Admin Portal</span>
-      </div>
-    </a>
+  {% set active_page = 'admin_dashboard' %}
+  {% include 'sidebar_partial.html' %}
 
-    <nav class="nav-links">
-      <a href="{{ url_for('admin_dashboard') }}" class="nav-link active">Governance Overview</a>
-      <a href="#patientDirectory" class="nav-link">Patient Directory</a>
-      <a href="#caregiverDirectory" class="nav-link">Caregivers</a>
-      <a href="#notificationLogs" class="nav-link">Notification Audit</a>
-    </nav>
-
-    <div class="nav-actions">
-      <div style="text-align:right; margin-right:8px;">
-        <div style="font-size:0.82rem; font-weight:700; color:var(--text-main);">
-          {{ session.get('user_name', 'Master Administrator') }}
-          {% if session.get('user_email') == 'vasudevareddyeevuri@gmail.com' %}
-            <span style="background:rgba(239,68,68,0.2); color:#FCA5A5; font-size:0.7rem; padding:2px 6px; border-radius:4px; margin-left:4px;">Master</span>
-          {% endif %}
-        </div>
-        <div style="font-size:0.72rem; color:var(--text-muted); display:inline-flex; align-items:center; gap:4px;">
-          <span style="width:6px; height:6px; border-radius:50%; background:#10B981; display:inline-block;"></span>
-          {{ session.get('user_email', 'vasudevareddyeevuri@gmail.com') }}
+  <div class="app-main-wrapper">
+    <!-- TOP APP BAR WITH HAMBURGER -->
+    <header class="app-topbar" style="border-bottom: 1px solid rgba(239, 68, 68, 0.25);">
+      <div class="topbar-left">
+        <button type="button" class="hamburger-btn" id="sidebarHamburgerBtn" onclick="toggleSidebar()" aria-label="Toggle Navigation Sidebar" title="Toggle Sidebar">
+          <span class="hamburger-line"></span>
+          <span class="hamburger-line"></span>
+          <span class="hamburger-line"></span>
+        </button>
+        <div class="topbar-page-info">
+          <h2 class="topbar-title">Governance Portal</h2>
+          <span class="topbar-subtitle">System-Wide Clinical Audit &amp; Adherence Governance</span>
         </div>
       </div>
-      <a href="{{ url_for('admin_logout') }}" class="btn-logout" title="Sign Out Administrator">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
-        </svg>
-      </a>
-    </div>
-  </header>
 
-  <main class="main-content" style="max-width:1300px; padding:24px 20px;">
+      <div class="topbar-right">
+        <!-- Quick Summary Export Link -->
+        <a href="{{ url_for('admin_export_excel_summary') }}" class="btn-primary-header" style="background:linear-gradient(135deg, #DC2626 0%, #991B1B 100%);">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          <span>Excel Summary</span>
+        </a>
+
+        <div style="text-align:right; margin-right:8px;">
+          <div style="font-size:0.82rem; font-weight:700; color:var(--text-main);">
+            {{ session.get('user_name', 'Master Administrator') }}
+            {% if session.get('user_email') == 'vasudevareddyeevuri@gmail.com' %}
+              <span class="badge-master">Master</span>
+            {% endif %}
+          </div>
+          <div style="font-size:0.72rem; color:var(--text-muted); display:inline-flex; align-items:center; gap:4px;">
+            <span style="width:6px; height:6px; border-radius:50%; background:#10B981; display:inline-block;"></span>
+            {{ session.get('user_email', 'vasudevareddyeevuri@gmail.com') }}
+          </div>
+        </div>
+
+        <a href="{{ url_for('admin_logout') }}" class="btn-logout" title="Sign Out Administrator">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+          </svg>
+        </a>
+      </div>
+    </header>
+
+    <main class="main-content" style="max-width:1300px; padding:24px 20px;">
     
     <!-- PAGE HEADER WITH EXPORT ACTIONS -->
     <div class="dashboard-header" style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:16px;">
@@ -369,6 +375,7 @@
     </div>
 
   </main>
+  </div> <!-- /app-main-wrapper -->
 
   <script>
     function filterPatientTable() {

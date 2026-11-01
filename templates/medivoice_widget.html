@@ -1,10 +1,10 @@
 <!-- ==========================================================================
-     PERMANENT MULTILINGUAL MEDIVOICE ASSISTANT WIDGET & DRAWER
+     PERMANENT MULTILINGUAL MEDIVOICE ASSISTANT WIDGET & CHAT PANEL
      Available across all pages (Login, Dashboard, Caregiver, History, Settings, Add Med)
      ========================================================================== -->
 <button type="button" class="medivoice-trigger-btn" id="medivoiceTriggerBtn" onclick="toggleMediVoice()" title="Open MediVoice Multilingual AI Assistant" aria-label="Open MediVoice AI Assistant">
   <div class="medivoice-pulse-dot"></div>
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
     <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
     <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
     <line x1="12" y1="19" x2="12" y2="22"/>
@@ -75,8 +75,15 @@
         ⏹ Stop
       </button>
 
-      <!-- Minimize / Close -->
+      <!-- Minimize Button -->
       <button type="button" class="medivoice-close-btn" onclick="toggleMediVoice()" title="Minimize Assistant" aria-label="Minimize Assistant">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <line x1="5" y1="12" x2="19" y2="12"/>
+        </svg>
+      </button>
+
+      <!-- Close Button -->
+      <button type="button" class="medivoice-close-btn" onclick="closeMediVoiceDirect()" title="Close Assistant" aria-label="Close Assistant">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
         </svg>
@@ -94,6 +101,21 @@
     <!-- Populated dynamically based on page context (login vs authenticated) and language -->
   </div>
 
+  <!-- Dedicated Microphone Permission Status & Quick Enable Strip -->
+  <div class="medivoice-mic-strip" id="medivoiceMicStrip">
+    <div class="mic-strip-left">
+      <span class="mic-strip-indicator" id="micStripIndicator"></span>
+      <span class="mic-strip-label" id="micStripLabel">Microphone ready for speech</span>
+    </div>
+    <button type="button" class="btn-enable-mic" id="btnEnableMicQuick" onclick="requestMicPermissionExplicitly()" title="Click to grant/test microphone permission">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
+        <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+      </svg>
+      <span>Enable Mic</span>
+    </button>
+  </div>
+
   <!-- Live speech interim transcript -->
   <div class="medivoice-live-preview" id="medivoiceLivePreview">
     Listening...
@@ -101,7 +123,7 @@
 
   <!-- Controls / Input -->
   <div class="medivoice-controls">
-    <button type="button" class="medivoice-mic-btn" id="medivoiceMicBtn" onclick="toggleListening()" title="Speak in English, Hindi, Telugu, or Tamil" aria-label="Toggle Microphone Voice Recognition">
+    <button type="button" class="medivoice-mic-btn" id="medivoiceMicBtn" onclick="toggleListening()" title="Speak in English, Hindi, Telugu, or Tamil (Click to Start/Stop)" aria-label="Toggle Microphone Voice Recognition">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
         <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
         <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>

@@ -8,41 +8,38 @@
 </head>
 <body class="app-layout">
 
-  <!-- TOP NAVBAR -->
-  <header class="navbar">
-    <a href="{{ url_for('index') }}" class="nav-brand">
-      <div class="brand-icon-box">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-          <path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z"/>
-          <path d="m8.5 8.5 7 7"/>
-        </svg>
+  {% set active_page = 'history' %}
+  {% include 'sidebar_partial.html' %}
+
+  <div class="app-main-wrapper">
+    <!-- TOP APP BAR WITH HAMBURGER -->
+    <header class="app-topbar">
+      <div class="topbar-left">
+        <button type="button" class="hamburger-btn" id="sidebarHamburgerBtn" onclick="toggleSidebar()" aria-label="Toggle Navigation Sidebar" title="Toggle Sidebar">
+          <span class="hamburger-line"></span>
+          <span class="hamburger-line"></span>
+          <span class="hamburger-line"></span>
+        </button>
+        <div class="topbar-page-info">
+          <h2 class="topbar-title">Adherence History</h2>
+          <span class="topbar-subtitle">Complete Prescription Compliance Audit Log</span>
+        </div>
       </div>
-      <div>
-        <span class="brand-name">SmartMed</span>
-        <span class="brand-tag">History</span>
+
+      <div class="topbar-right">
+        <a href="{{ url_for('admin_dashboard' if session.get('role') == 'admin' else ('caregiver_dashboard' if session.get('role') == 'caregiver' else 'patient_dashboard')) }}" class="btn-secondary" style="padding:6px 14px; font-size:0.8rem;">
+          ← Back to Dashboard
+        </a>
+        <a href="{{ url_for('logout') }}" class="btn-logout" title="Sign Out">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+          </svg>
+        </a>
       </div>
-    </a>
+    </header>
 
-    <nav class="nav-links">
-      <a href="{{ url_for('index') }}" class="nav-link">Dashboard</a>
-      <a href="{{ url_for('history') }}" class="nav-link active">Adherence History</a>
-      <a href="{{ url_for('settings') }}" class="nav-link">Settings</a>
-    </nav>
-
-    <div class="nav-actions">
-      <a href="{{ url_for('index') }}" class="btn-secondary" style="padding:6px 14px; font-size:0.8rem;">
-        ← Back to Dashboard
-      </a>
-      <a href="{{ url_for('logout') }}" class="btn-logout" title="Sign Out">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
-        </svg>
-      </a>
-    </div>
-  </header>
-
-  <!-- MAIN CONTAINER -->
-  <main class="main-content">
+    <!-- MAIN CONTAINER -->
+    <main class="main-content">
 
     <div class="dashboard-header">
       <div class="header-title-box">
@@ -127,6 +124,7 @@
     </section>
 
   </main>
+  </div> <!-- /app-main-wrapper -->
 
   <!-- MediVoice Assistant Widget Partial -->
   {% include 'medivoice_widget.html' %}

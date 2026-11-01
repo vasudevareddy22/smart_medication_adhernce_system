@@ -515,14 +515,27 @@ function initSpeechRecognition() {
     }
 
     const preview = document.getElementById('medivoiceLivePreview');
+    const input = document.getElementById('medivoiceInput');
+
     if (preview) {
-      preview.textContent = interimTranscript || finalTranscript;
+      preview.textContent = interimTranscript || finalTranscript || 'Listening...';
       preview.classList.add('active');
     }
 
-    if (finalTranscript) {
-      appendMediVoiceMessage('user', finalTranscript);
-      processMediVoiceBackend(finalTranscript);
+    // Populate user input field live so the user can see and edit the recognized text before sending
+    if (input) {
+      if (finalTranscript) {
+        input.value = finalTranscript.trim();
+        input.focus();
+      } else if (interimTranscript) {
+        input.value = interimTranscript;
+      }
+    }
+
+    // Update mic strip with recognized snippet
+    const stripLabel = document.getElementById('micStripLabel');
+    if (stripLabel && (finalTranscript || interimTranscript)) {
+      stripLabel.textContent = `Heard: "${(finalTranscript || interimTranscript).slice(0, 32)}..."`;
     }
   };
 
@@ -570,7 +583,7 @@ function initSpeechRecognition() {
     }
   };
 }
-
+ 
 /**
  * Toggle MediVoice Drawer
  */
@@ -586,7 +599,131 @@ function toggleMediVoice() {
     // Focus input when opened
     const input = document.getElementById('medivoiceInput');
     if (input) input.focus();
+    // Scroll messages to bottom
+    const msgs = document.getElementById('medivoiceMessages');
+    if (msgs) msgs.scrollTop = msgs.scrollHeight;
   }
+}
+
+/**
+ * Explicit close for MediVoice
+ */
+function closeMediVoiceDirect() {
+  const drawer = document.getElementById('medivoiceDrawer');
+  if (drawer) {
+    drawer.classList.remove('active');
+    stopSpeaking();
+  }
+}
+
+/**
+ * ==========================================================================
+ * COLLAPSIBLE SIDEBAR & RESPONSIVE DRAWER MANAGEMENT
+ * ==========================================================================
+ */
+
+function toggleSidebar() {
+  const isMobile = window.innerWidth <= 991;
+  const sidebar = document.getElementById('appSidebar');
+  const backdrop = document.getElementById('sidebarBackdrop');
+  const body = document.body;
+
+  if (isMobile) {
+    // Mobile overlay drawer
+    if (sidebar) sidebar.classList.toggle('mobile-open');
+    if (backdrop) backdrop.classList.toggle('active');
+  } else {
+    // Desktop collapse / expand
+    const isCurrentlyCollapsed = sidebar ? sidebar.classList.contains('collapsed') : false;
+    setSidebarCollapsed(!isCurrentlyCollapsed);
+  }
+}
+
+function toggleSidebarCollapse() {
+  const sidebar = document.getElementById('appSidebar');
+  if (!sidebar) return;
+  const isCurrentlyCollapsed = sidebar.classList.contains('collapsed');
+  setSidebarCollapsed(!isCurrentlyCollapsed);
+}
+
+function setSidebarCollapsed(collapsed) {
+  const sidebar = document.getElementById('appSidebar');
+  const body = document.body;
+  if (!sidebar) return;
+
+  if (collapsed) {
+    sidebar.classList.add('collapsed');
+    body.classList.add('sidebar-collapsed');
+    localStorage.setItem('smartmed_sidebar_collapsed', 'true');
+  } else {
+    sidebar.classList.remove('collapsed');
+    body.classList.remove('sidebar-collapsed');
+    localStorage.setItem('smartmed_sidebar_collapsed', 'false');
+  }
+}
+
+function closeSidebarMobile() {
+  const sidebar = document.getElementById('appSidebar');
+  const backdrop = document.getElementById('sidebarBackdrop');
+  if (sidebar) sidebar.classList.remove('mobile-open');
+  if (backdrop) backdrop.classList.remove('active');
+}
+
+/**
+ * Global Keyboard & Interaction Handler (Escape to close modals/drawers)
+ */
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    closeSidebarMobile();
+    const medivoice = document.getElementById('medivoiceDrawer');
+    if (medivoice && medivoice.classList.contains('active')) {
+      closeMediVoiceDirect();
+    }
+    const reminderModal = document.getElementById('reminderModal');
+    if (reminderModal && reminderModal.classList.contains('active')) {
+      closeReminderModal();
+    }
+    closeMediVoicePermissionModal();
+  }
+});
+
+/**
+ * Initialize Sidebar and SaaS Button Interaction handlers on page load
+ */
+document.addEventListener('DOMContentLoaded', () => {
+  // Restore sidebar state on desktop
+  if (window.innerWidth > 991) {
+    const isSavedCollapsed = localStorage.getItem('smartmed_sidebar_collapsed') === 'true';
+    if (isSavedCollapsed) {
+      setSidebarCollapsed(true);
+    }
+  }
+
+  // Bind temporary click animation on all action buttons
+  setupButtonFeedback();
+});
+
+/**
+ * Attach temporary click animation without permanent color stickiness
+ */
+function setupButtonFeedback() {
+  const actionSelectors = [
+    '.btn-cta',
+    '.btn-secondary',
+    '.btn-confirm-taken',
+    '.btn-confirm-missed',
+    '.btn-primary-auth',
+    '.btn-enable-mic'
+  ];
+
+  document.querySelectorAll(actionSelectors.join(',')).forEach((btn) => {
+    btn.addEventListener('click', function() {
+      this.classList.add('btn-clicked-temporary');
+      setTimeout(() => {
+        this.classList.remove('btn-clicked-temporary');
+      }, 350);
+    });
+  });
 }
 
 /**
@@ -1176,6 +1313,28 @@ function setMicrophoneState(state, detail) {
     if (title) { title.textContent = 'Recognition Error'; title.style.color = '#F59E0B'; }
     if (desc) desc.textContent = detail || 'Speech recognition encountered an issue. Typed chat remains available.';
     if (btnText) btnText.textContent = '🎙️ Test Microphone Again';
+  }
+
+  // Synchronize dedicated quick mic strip in MediVoice window
+  const stripIndicator = document.getElementById('micStripIndicator');
+  const stripLabel = document.getElementById('micStripLabel');
+  if (stripIndicator && stripLabel) {
+    if (state === 'Listening') {
+      stripIndicator.className = 'mic-strip-indicator listening';
+      stripLabel.textContent = `Listening (${currentLang})...`;
+    } else if (state === 'Microphone Ready') {
+      stripIndicator.className = 'mic-strip-indicator';
+      stripLabel.textContent = micDeviceLabel ? `Mic Ready: ${micDeviceLabel}` : 'Microphone Ready';
+    } else if (state === 'Permission Blocked') {
+      stripIndicator.className = 'mic-strip-indicator denied';
+      stripLabel.textContent = 'Mic Permission Blocked';
+    } else if (state === 'Requesting Permission') {
+      stripIndicator.className = 'mic-strip-indicator listening';
+      stripLabel.textContent = 'Requesting Mic Access...';
+    } else {
+      stripIndicator.className = 'mic-strip-indicator';
+      stripLabel.textContent = 'Click Enable Mic to Test Access';
+    }
   }
 }
 

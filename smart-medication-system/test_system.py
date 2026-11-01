@@ -648,6 +648,12 @@ class SystemAdherenceTestSuite(unittest.TestCase):
         self.assertIn(b"Register Administrator", res_signup_page.data)
         self.assertIn(b"Admin Sign Up", res_signup_page.data)
 
+        # Ensure clean state for supervisor registration test
+        conn = get_db()
+        conn.execute("DELETE FROM users WHERE email = 'supervisor@smartmed.com'")
+        conn.commit()
+        conn.close()
+
         # Test creating new admin through /admin/signup
         res_new_admin = self.client.post('/admin/signup', data={
             'name': 'Clinical Supervisor',
