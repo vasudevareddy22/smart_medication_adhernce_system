@@ -353,6 +353,7 @@ function onMediVoiceLanguageChange(newLang) {
   const input = document.getElementById('medivoiceInput');
   if (input) {
     const placeholders = {
+      'en-US': 'Speak or type a question in English...',
       'en-IN': 'Speak or type a question in English...',
       'hi-IN': 'हिन्दी में बोलें या टाइप करें...',
       'te-IN': 'తెలుగులో మాట్లాడండి లేదా టైప్ చేయండి...',
@@ -451,7 +452,8 @@ function renderQuickPromptChips() {
     ])
   };
 
-  const list = prompts[currentLang] || prompts['en-IN'];
+  prompts['en-US'] = prompts['en-IN'];
+  const list = prompts[currentLang] || prompts['en-US'] || prompts['en-IN'];
   container.innerHTML = '';
   list.forEach(item => {
     const btn = document.createElement('button');
@@ -468,82 +470,157 @@ function renderQuickPromptChips() {
 }
 
 /**
- * Track mic permission and hardware availability status across session
+ * Track mic permission, hardware availability, and speech submission status across session
  */
 let micPermissionGranted = false;
 let micHardwareVerified = false;
 let micDeviceLabel = '';
+let finalTranscriptSubmitted = false;
+
+function getLanguageDisplayName(code) {
+  const map = {
+    'en-US': 'English (US)',
+    'en-IN': 'English (India)',
+    'te-IN': 'Telugu (తెలుగు)',
+    'hi-IN': 'Hindi (हिन्दी)',
+    'ta-IN': 'Tamil (தமிழ்)'
+  };
+  return map[code] || code;
+}
 
 /**
- * Initialize Web Speech API SpeechRecognition with Multilingual Support
+ * Initialize Web Speech API SpeechRecognition with Multilingual Support & Full Lifecycle
  */
 function initSpeechRecognition() {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SpeechRecognition) {
-    console.warn('Web Speech Recognition API is not supported in this browser. Fallback to typed chat.');
-    return;
+    console.warn('[MediVoice] Web Speech Recognition API is not supported in this browser. Fallback to typed chat.');
+    return null;
   }
 
+  // Create clean SpeechRecognition instance
   recognition = new SpeechRecognition();
   recognition.continuous = false;
   recognition.interimResults = true;
-  recognition.lang = currentLang;
+  recognition.maxAlternatives = 1;
+  recognition.lang = currentLang || 'en-US';
 
+  // 1. Lifecycle: onstart - Speech recognition engine activated
   recognition.onstart = () => {
     isListening = true;
+    finalTranscriptSubmitted = false;
     micPermissionGranted = true;
     setMicrophoneState('Listening');
+    updateMediVoiceStatus('listening', `Listening in ${getLanguageDisplayName(currentLang)}...`);
     const micBtn = document.getElementById('medivoiceMicBtn');
     if (micBtn) micBtn.classList.add('listening');
     const preview = document.getElementById('medivoiceLivePreview');
     if (preview) {
-      preview.textContent = 'Listening... Speak clearly in your selected language';
+      preview.textContent = `Listening (${getLanguageDisplayName(currentLang)})... Speak clearly`;
       preview.classList.add('active');
     }
+    console.log(`[MediVoice] Speech recognition started (lang: ${recognition.lang})`);
   };
 
+  // 2. Lifecycle: onaudiostart - Audio input stream capture started
+  recognition.onaudiostart = () => {
+    console.log('[MediVoice] Audio capture started.');
+    const stripIndicator = document.getElementById('micStripIndicator');
+    if (stripIndicator) stripIndicator.className = 'mic-strip-indicator listening';
+  };
+
+  // 3. Lifecycle: onspeechstart - Speech detected by audio input
+  recognition.onspeechstart = () => {
+    console.log('[MediVoice] Speech detected by microphone.');
+    const preview = document.getElementById('medivoiceLivePreview');
+    if (preview) preview.textContent = 'Hearing speech...';
+  };
+
+  // 4. Lifecycle: onresult - Real-time interim preview & final transcript dispatch
   recognition.onresult = (event) => {
     let interimTranscript = '';
     let finalTranscript = '';
 
     for (let i = event.resultIndex; i < event.results.length; ++i) {
+      const transcript = event.results[i][0].transcript;
       if (event.results[i].isFinal) {
-        finalTranscript += event.results[i][0].transcript;
+        finalTranscript += transcript;
       } else {
-        interimTranscript += event.results[i][0].transcript;
+        interimTranscript += transcript;
       }
     }
 
     const preview = document.getElementById('medivoiceLivePreview');
     const input = document.getElementById('medivoiceInput');
 
-    if (preview) {
-      preview.textContent = interimTranscript || finalTranscript || 'Listening...';
-      preview.classList.add('active');
-    }
-
-    // Populate user input field live so the user can see and edit the recognized text before sending
-    if (input) {
-      if (finalTranscript) {
-        input.value = finalTranscript.trim();
-        input.focus();
-      } else if (interimTranscript) {
+    // Requirement 7 & 8: Display interim transcripts in live preview without auto-submitting
+    if (interimTranscript) {
+      if (preview) {
+        preview.textContent = `🎤 "${interimTranscript}"`;
+        preview.classList.add('active');
+      }
+      if (input) {
         input.value = interimTranscript;
+      }
+      const stripLabel = document.getElementById('micStripLabel');
+      if (stripLabel) {
+        stripLabel.textContent = `Heard: "${interimTranscript.slice(0, 32)}..."`;
       }
     }
 
-    // Update mic strip with recognized snippet
-    const stripLabel = document.getElementById('micStripLabel');
-    if (stripLabel && (finalTranscript || interimTranscript)) {
-      stripLabel.textContent = `Heard: "${(finalTranscript || interimTranscript).slice(0, 32)}..."`;
+    // Requirement 9 & 10: Submit ONLY final recognized transcript, prevent duplicate submissions
+    if (finalTranscript.trim() && !finalTranscriptSubmitted) {
+      finalTranscriptSubmitted = true;
+      const cleanFinal = finalTranscript.trim();
+      console.log('[MediVoice] Final recognized speech transcript:', cleanFinal);
+
+      if (preview) {
+        preview.textContent = `✓ "${cleanFinal}"`;
+        setTimeout(() => {
+          if (!isListening) preview.classList.remove('active');
+        }, 1200);
+      }
+
+      if (input) {
+        input.value = '';
+      }
+
+      // Stop recognition cleanly once final transcript is obtained
+      try {
+        recognition.stop();
+      } catch (e) {}
+
+      // Update UI state to processing
+      updateMediVoiceStatus('thinking', 'Processing your voice...');
+
+      // Append user bubble to chat and submit to Flask backend
+      appendMediVoiceMessage('user', cleanFinal);
+      processMediVoiceBackend(cleanFinal);
     }
   };
 
+  // 5. Lifecycle: onspeechend - Speech input completed
+  recognition.onspeechend = () => {
+    console.log('[MediVoice] Speech ended.');
+    const preview = document.getElementById('medivoiceLivePreview');
+    if (preview && !finalTranscriptSubmitted) {
+      preview.textContent = 'Processing speech...';
+    }
+  };
+
+  // 6. Lifecycle: onaudioend - Audio capture session ended
+  recognition.onaudioend = () => {
+    console.log('[MediVoice] Audio capture ended.');
+  };
+
+  // 7. Lifecycle: onerror - Individual error code resolution & UI feedback
   recognition.onerror = (event) => {
-    console.warn('Speech recognition error event:', event.error);
+    console.warn('[MediVoice] Speech recognition error event:', event.error);
     isListening = false;
     const micBtn = document.getElementById('medivoiceMicBtn');
     if (micBtn) micBtn.classList.remove('listening');
+    const preview = document.getElementById('medivoiceLivePreview');
+    if (preview) preview.classList.remove('active');
 
     let msg = 'Voice recognition error.';
     if (event.error === 'not-allowed') {
@@ -552,29 +629,48 @@ function initSpeechRecognition() {
       openMediVoicePermissionModal();
       setMicrophoneState('Permission Blocked');
       msg = 'Microphone permission blocked. In Chrome address bar next to 127.0.0.1:5000, click the tune/lock icon and set Microphone to "Allow".';
+    } else if (event.error === 'service-not-allowed') {
+      setMicrophoneState('Recognition Error', 'Service not allowed');
+      msg = 'Speech recognition service is disabled or blocked by browser security policy. Please use typed chat.';
     } else if (event.error === 'no-speech') {
-      msg = 'No speech was detected. Click the mic button to try again, or type your message below.';
-      if (micHardwareVerified) setMicrophoneState('Microphone Ready');
+      if (!finalTranscriptSubmitted) {
+        msg = 'No speech was detected. Click the mic button to try again, or type your message below.';
+        if (micHardwareVerified) setMicrophoneState('Microphone Ready');
+        else updateMediVoiceStatus('idle', 'Online • Ready');
+      } else {
+        return;
+      }
     } else if (event.error === 'audio-capture') {
       micHardwareVerified = false;
       setMicrophoneState('Microphone Not Found', 'Audio capture failed');
-      msg = 'No microphone was found or microphone is in use by another app.';
+      msg = 'No microphone was found or microphone is in use by another app. Please check your audio device.';
     } else if (event.error === 'network') {
       setMicrophoneState('Recognition Error', 'Network error');
-      msg = 'Speech recognition network error. Please verify your internet connection or use typed chat.';
+      msg = 'Speech recognition network error. The Web Speech API requires internet access. Please use typed chat.';
+    } else if (event.error === 'aborted') {
+      console.log('[MediVoice] Speech recognition was cancelled or aborted.');
+      if (micHardwareVerified) setMicrophoneState('Microphone Ready');
+      else updateMediVoiceStatus('idle', 'Online • Ready');
+      return;
+    } else if (event.error === 'language-not-supported') {
+      setMicrophoneState('Recognition Error', 'Language unsupported');
+      msg = `The selected language (${getLanguageDisplayName(currentLang)}) is not supported for speech recognition by this browser. Please select another language or use typed chat.`;
     } else {
       setMicrophoneState('Recognition Error', event.error);
+      msg = `Voice recognition error (${event.error}). You can continue using typed chat.`;
     }
     appendMediVoiceMessage('assistant', `⚠️ ${msg}`);
   };
 
+  // 8. Lifecycle: onend - Reset listening state and update status
   recognition.onend = () => {
     isListening = false;
     const micBtn = document.getElementById('medivoiceMicBtn');
     if (micBtn) micBtn.classList.remove('listening');
     const preview = document.getElementById('medivoiceLivePreview');
     if (preview) preview.classList.remove('active');
-    if (!isSpeaking) {
+    console.log('[MediVoice] Speech recognition lifecycle ended.');
+    if (!isSpeaking && !finalTranscriptSubmitted) {
       if (micHardwareVerified) {
         setMicrophoneState('Microphone Ready');
       } else {
@@ -582,6 +678,8 @@ function initSpeechRecognition() {
       }
     }
   };
+
+  return recognition;
 }
  
 /**
@@ -727,22 +825,23 @@ function setupButtonFeedback() {
 }
 
 /**
- * Trigger voice listening with start/stop toggle and hardware verification
+ * Trigger voice listening with start/stop toggle, browser support check & lifecycle integration
  */
 async function toggleListening() {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SpeechRecognition) {
-    alert('Web Speech API is not supported in this browser. Please type your message into the text box below.');
+    alert('Web Speech Recognition API is not supported in this browser. Please type your message into the text box below, or use Google Chrome.');
     const input = document.getElementById('medivoiceInput');
     if (input) input.focus();
     return;
   }
 
-  // If assistant is currently speaking, stop it first
+  // If assistant is currently speaking, stop audio playback first
   stopSpeaking();
 
   // If already listening, stop speech recognition cleanly
   if (isListening) {
+    console.log('[MediVoice] Manually stopping listening session...');
     if (recognition) {
       try {
         recognition.stop();
@@ -759,46 +858,52 @@ async function toggleListening() {
     return;
   }
 
-  // If microphone hardware has not been verified yet, test/request access now
-  if (!micHardwareVerified) {
-    try {
-      await testMicrophoneHardware(false);
-    } catch (err) {
-      const errInfo = handleMediaError(err);
-      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-        openMediVoicePermissionModal();
-      }
-      appendMediVoiceMessage('assistant', `⚠️ ${errInfo.message}`);
-      return;
-    }
+  // Open MediVoice drawer if not active
+  const drawer = document.getElementById('medivoiceDrawer');
+  if (drawer && !drawer.classList.contains('active')) {
+    drawer.classList.add('active');
   }
 
-  // Start speech recognition in selected language
+  // Initialize speech recognition instance if needed
+  if (!recognition) {
+    initSpeechRecognition();
+  }
+  if (!recognition) return;
+
+  // Reset submission flag for this session
+  finalTranscriptSubmitted = false;
+
+  // Apply current selected language
+  recognition.lang = currentLang || 'en-US';
+
+  // Start speech recognition directly (native Web Speech API mic prompt)
   try {
-    if (!recognition) initSpeechRecognition();
-    recognition.lang = currentLang;
     recognition.start();
+    console.log('[MediVoice] Initiated speech recognition in ' + recognition.lang);
   } catch (err) {
-    console.warn('Recognition start error:', err);
+    console.warn('[MediVoice] Recognition start error:', err);
     if (err.name === 'InvalidStateError') {
       // Recognition already running or transitioning; restart safely
       try {
         recognition.stop();
-        setTimeout(() => {
-          try {
-            recognition.lang = currentLang;
-            recognition.start();
-          } catch (retryErr) {
-            console.warn('Retry recognition start failed:', retryErr);
-          }
-        }, 150);
-      } catch (ignore) {}
+      } catch (e) {}
+      setTimeout(() => {
+        try {
+          finalTranscriptSubmitted = false;
+          recognition.lang = currentLang || 'en-US';
+          recognition.start();
+        } catch (retryErr) {
+          console.warn('[MediVoice] Retry recognition start failed:', retryErr);
+        }
+      }, 200);
     } else if (err.name === 'NotAllowedError') {
       micPermissionGranted = false;
       micHardwareVerified = false;
       openMediVoicePermissionModal();
-      updatePermissionAlert('denied');
-      appendMediVoiceMessage('assistant', '⚠️ Microphone permission is blocked in your browser.');
+      setMicrophoneState('Permission Blocked');
+      appendMediVoiceMessage('assistant', '⚠️ Microphone permission is blocked in your browser. Click the lock/tune icon in the address bar to allow.');
+    } else {
+      appendMediVoiceMessage('assistant', `⚠️ Could not start speech recognition: ${err.message || err.name}`);
     }
   }
 }
@@ -1096,9 +1201,12 @@ function renderDefaultGreeting() {
   const isLoginPage = window.location.pathname === '/login' || window.location.pathname === '/' || !!document.getElementById('authForm');
 
   const greetings = {
+    'en-US': isLoginPage 
+      ? "👋 Hello! I am MediVoice. You can speak or type to log in (say 'Log in as Patient' or 'Log in as Caregiver'), ask questions, or adjust microphone permissions."
+      : "👋 Hello! I am MediVoice, your multilingual medication assistant. You can speak to me or type your questions in English, Telugu, Hindi, or Tamil.",
     'en-IN': isLoginPage 
       ? "👋 Hello! I am MediVoice. You can speak or type to log in (say 'Log in as Patient' or 'Log in as Caregiver'), ask questions, or adjust microphone permissions."
-      : "👋 Hello! I am MediVoice, your multilingual medication assistant. You can speak to me or type your questions in English, Hindi, Telugu, or Tamil.",
+      : "👋 Hello! I am MediVoice, your multilingual medication assistant. You can speak to me or type your questions in English, Telugu, Hindi, or Tamil.",
     'hi-IN': isLoginPage 
       ? "👋 नमस्ते! मैं मेडीवॉइस हूँ। आप मुझसे बोलकर या लिखकर लॉगिन कर सकते हैं ('मरीज लॉगिन' कहें), सहायता प्राप्त कर सकते हैं, या माइक सेटिंग्स समायोजित कर सकते हैं।"
       : "👋 नमस्ते! मैं मेडीवॉइस (MediVoice) हूँ, आपका बहुभाषी दवा सहायक। आप मुझसे हिन्दी, अंग्रेज़ी, तेलुगु या तमिल में बोलकर या लिखकर पूछ सकते हैं।",
@@ -1112,7 +1220,7 @@ function renderDefaultGreeting() {
 
   messagesBox.innerHTML = `
     <div class="medivoice-msg-wrapper assistant">
-      <div class="medivoice-msg assistant">${greetings[currentLang] || greetings['en-IN']}</div>
+      <div class="medivoice-msg assistant">${greetings[currentLang] || greetings['en-US'] || greetings['en-IN']}</div>
     </div>
   `;
 }

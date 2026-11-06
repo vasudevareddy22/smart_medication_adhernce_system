@@ -1524,6 +1524,16 @@ body {
   animation: pulseDot 1s infinite;
 }
 
+.medivoice-status-dot.thinking {
+  background: #F59E0B;
+  animation: pulseDot 0.8s infinite;
+}
+
+.medivoice-status-dot.error,
+.medivoice-status-dot.blocked {
+  background: #EF4444;
+}
+
 @keyframes pulseDot {
   0% { transform: scale(1); opacity: 1; }
   50% { transform: scale(1.4); opacity: 0.5; }

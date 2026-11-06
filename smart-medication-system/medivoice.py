@@ -15,7 +15,8 @@ OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 
 # Supported Languages Mapping
 SUPPORTED_LANGUAGES = {
-    "en-IN": "English",
+    "en-IN": "English (India)",
+    "en-US": "English (US)",
     "hi-IN": "Hindi",
     "te-IN": "Telugu",
     "ta-IN": "Tamil"
@@ -25,7 +26,11 @@ SUPPORTED_LANGUAGES = {
 def detect_language(text, explicit_lang=None):
     """
     Detects language from text script or falls back to explicit_lang / en-IN.
+    Normalizes English dialect variants (en-US, en-GB, en) to en-IN for dictionary lookups.
     """
+    if explicit_lang in ("en-US", "en-GB", "en"):
+        explicit_lang = "en-IN"
+
     if not text:
         return explicit_lang if explicit_lang in SUPPORTED_LANGUAGES else "en-IN"
 
@@ -456,9 +461,9 @@ def process_medivoice_query(user_text, user_id, user_role, db_conn, target_patie
         # 3. Adherence Percentage
         adh_patterns = [
             "adherence percentage", "adherence rate", "my adherence", "compliance rate",
-            "अनुपालन प्रतिशत", "मेरा adherence क्या है",
-            "అడ్హీరెన్స్ శాతం", "నా అడ్హీరెన్స్ ఎంత",
-            "பின்பற்றும் வீதம்", "எனது adherence சதவீதம்"
+            "अनुपालन प्रतिशत", "अनुपालन", "मेरा adherence क्या है",
+            "అడ్హీరెన్స్ శాతం", "నా అడ్హీరెన్స్ ఎంత", "అనుసరణ శాతం", "నా అనుసరణ శాతం", "అనుసరణ", "అడ్హీరెన్స్",
+            "பின்பற்றும் வீதம்", "பின்பற்றுதல் சதவீதம்", "எனது adherence சதவீதம்"
         ]
         if any(p in text for p in adh_patterns):
             cursor.execute("""

@@ -830,7 +830,72 @@ class SystemAdherenceTestSuite(unittest.TestCase):
         self.assertIn(b"Mobile notification preferences", res_post.data)
         print("[PASS] TC35 - Notification Settings & Contact Preferences Management")
 
+    def test_tc36_medivoice_speech_languages_en_us_and_telugu(self):
+        """TC36 - MediVoice Speech-to-Text language support for English (en-US / en-IN) and Telugu (te-IN)."""
+        self.client.post('/login', data={'email': 'patient@test.com', 'password': 'patient123'})
+
+        # English (en-US) voice query
+        res_en = self.client.post('/api/medivoice/chat', json={
+            'message': "What medicines do I need to take today?",
+            'language': "en-US"
+        })
+        self.assertEqual(res_en.status_code, 200)
+        data_en = res_en.get_json()
+        self.assertTrue(data_en['success'])
+        self.assertIn("today", data_en['reply'].lower())
+
+        # Telugu (te-IN) voice query - Today's medications
+        res_te = self.client.post('/api/medivoice/chat', json={
+            'message': "ఈరోజు నేను ఏ మందులు వేసుకోవాలి?",
+            'language': "te-IN"
+        })
+        self.assertEqual(res_te.status_code, 200)
+        data_te = res_te.get_json()
+        self.assertTrue(data_te['success'])
+        self.assertEqual(data_te['language'], 'te-IN')
+        self.assertTrue(any(ord(c) >= 0x0C00 and ord(c) <= 0x0C7F for c in data_te['reply']))
+
+        # Telugu (te-IN) voice query - Adherence rate
+        res_te_adh = self.client.post('/api/medivoice/chat', json={
+            'message': "నా మందుల అనుసరణ శాతం ఎంత?",
+            'language': "te-IN"
+        })
+        self.assertEqual(res_te_adh.status_code, 200)
+        data_te_adh = res_te_adh.get_json()
+        self.assertTrue(data_te_adh['success'])
+        self.assertEqual(data_te_adh['language'], 'te-IN')
+        self.assertIn("%", data_te_adh['reply'])
+        print("[PASS] TC36 - MediVoice Speech-to-Text Support for English (en-US) & Telugu (te-IN)")
+
+    def test_tc37_medivoice_caregiver_multilingual_voice_query(self):
+        """TC37 - MediVoice Caregiver voice query with target patient ID and Telugu/English language support."""
+        self.client.post('/login', data={'email': 'caregiver@test.com', 'password': 'caregiver123'})
+
+        # Caregiver English query
+        res_cg_en = self.client.post('/api/medivoice/chat', json={
+            'message': "Which patients missed a dose today?",
+            'language': "en-US",
+            'target_patient_id': None
+        })
+        self.assertEqual(res_cg_en.status_code, 200)
+        data_cg_en = res_cg_en.get_json()
+        self.assertTrue(data_cg_en['success'])
+
+        # Caregiver Telugu query for specific authorized patient
+        res_cg_te = self.client.post('/api/medivoice/chat', json={
+            'message': "గత 7 రోజుల అనుసరణ చూపించండి",
+            'language': "te-IN",
+            'target_patient_id': 1
+        })
+        self.assertEqual(res_cg_te.status_code, 200)
+        data_cg_te = res_cg_te.get_json()
+        self.assertTrue(data_cg_te['success'])
+        self.assertEqual(data_cg_te['language'], 'te-IN')
+        self.assertTrue(any(ord(c) >= 0x0C00 and ord(c) <= 0x0C7F for c in data_cg_te['reply']))
+        print("[PASS] TC37 - Caregiver Multilingual Voice Integration (English & Telugu)")
+
 
 if __name__ == '__main__':
     unittest.main()
+
 
