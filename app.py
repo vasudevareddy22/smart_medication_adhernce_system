@@ -16,12 +16,28 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 import requests
 from medivoice import process_medivoice_query
 
-# Initialize Flask application
-app = Flask(__name__)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# Initialize Flask application with explicit absolute paths for templates and static files (Vercel-ready)
+app = Flask(
+    __name__,
+    template_folder=os.path.join(BASE_DIR, "templates"),
+    static_folder=os.path.join(BASE_DIR, "static")
+)
 app.secret_key = os.environ.get("SECRET_KEY", "smart-med-super-secret-key-2026")
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATABASE_PATH = os.path.join(BASE_DIR, "database.db")
+# Database path: Supports both local development and Vercel serverless environment (/tmp)
+if os.environ.get("VERCEL"):
+    DATABASE_PATH = os.path.join("/tmp", "database.db")
+    base_db = os.path.join(BASE_DIR, "database.db")
+    if not os.path.exists(DATABASE_PATH) and os.path.exists(base_db):
+        import shutil
+        try:
+            shutil.copy2(base_db, DATABASE_PATH)
+        except Exception:
+            pass
+else:
+    DATABASE_PATH = os.path.join(BASE_DIR, "database.db")
 
 
 def get_db():
