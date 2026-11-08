@@ -2955,3 +2955,445 @@ button:focus-visible,
     scroll-behavior: auto !important;
   }
 }
+
+/* ==========================================================================
+   MOTIONSITES.AI (https://motionsites.ai/) DESIGN SYSTEM & PROFESSIONAL POLISH
+   - Minimalist Dark Canvas (#070A11) with Ambient Mesh Glow
+   - Dual-Border Glassmorphism (Top-Light Highlight & Deep Shadows)
+   - Pill Segment Controls & Rounded-Full Navigation Badges
+   - Iridescent Gradient Shimmer on Accents & Primary CTAs
+   - Micro-Interactions, Smooth Transitions, and Crisp Grotesque Typography
+   ========================================================================== */
+
+/* 1. Global MotionSites Canvas & Typography */
+body,
+.app-layout,
+.auth-page-body {
+  background-color: #070B13 !important;
+  background-image: 
+    radial-gradient(80% 60% at 50% -10%, rgba(0, 242, 254, 0.08) 0%, rgba(127, 86, 217, 0.05) 40%, transparent 80%),
+    radial-gradient(60% 50% at 90% 15%, rgba(11, 159, 156, 0.06) 0%, transparent 60%) !important;
+  background-attachment: fixed !important;
+  color: #F8FAFC !important;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+  -webkit-font-smoothing: antialiased !important;
+  letter-spacing: -0.012em;
+}
+
+h1, h2, h3, .topbar-title, .header-title-box h1, .auth-left-heading {
+  letter-spacing: -0.028em !important;
+  font-weight: 800 !important;
+}
+
+/* 2. MotionSites Glassmorphic Topbar & Sidebar */
+.app-topbar {
+  background: rgba(9, 15, 28, 0.78) !important;
+  backdrop-filter: blur(20px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.35) !important;
+}
+
+.app-sidebar {
+  background: rgba(7, 12, 23, 0.94) !important;
+  backdrop-filter: blur(24px) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(190%) !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 8px 0 36px rgba(0, 0, 0, 0.55) !important;
+}
+
+.sidebar-header {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07) !important;
+}
+
+.sidebar-brand .brand-icon-box {
+  border-radius: 12px !important;
+  box-shadow: 0 0 20px rgba(0, 242, 254, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.2) !important;
+}
+
+.sidebar-user-block {
+  background: rgba(255, 255, 255, 0.035) !important;
+  border: 1px solid rgba(255, 255, 255, 0.07) !important;
+  border-radius: 12px !important;
+}
+
+.sidebar-nav-item {
+  border-radius: 9999px !important;
+  margin: 3px 6px !important;
+  padding: 9px 16px !important;
+  font-size: 0.86rem !important;
+  font-weight: 500 !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.sidebar-nav-item:hover {
+  background: rgba(255, 255, 255, 0.065) !important;
+  color: #FFFFFF !important;
+  transform: translateX(3px) !important;
+}
+
+.sidebar-nav-item.active {
+  background: rgba(20, 32, 56, 0.85) !important;
+  color: #00F2FE !important;
+  border: 1px solid rgba(0, 242, 254, 0.25) !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.22) !important;
+  box-shadow: 0 4px 16px rgba(0, 242, 254, 0.15) !important;
+  border-left: none !important;
+}
+
+/* 3. MotionSites Elevated Cards & Surfaces */
+.metric-card,
+.section-card,
+.history-filter-card,
+.setup-card,
+.profile-card,
+.settings-card,
+.card,
+.stat-card,
+.cg-patient-card,
+.admin-card {
+  background: rgba(13, 21, 38, 0.82) !important;
+  backdrop-filter: blur(16px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.18) !important;
+  border-radius: 18px !important;
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5), 0 0 1px 1px rgba(255, 255, 255, 0.03) !important;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s ease, box-shadow 0.25s ease !important;
+}
+
+.metric-card:hover,
+.section-card:hover,
+.cg-patient-card:hover {
+  transform: translateY(-2px) !important;
+  border-color: rgba(0, 242, 254, 0.3) !important;
+  box-shadow: 0 18px 40px -10px rgba(0, 242, 254, 0.14), 0 0 0 1px rgba(0, 242, 254, 0.18) !important;
+}
+
+.metric-card.highlight {
+  background: linear-gradient(145deg, rgba(16, 32, 58, 0.9) 0%, rgba(13, 21, 38, 0.85) 100%) !important;
+  border-color: rgba(0, 242, 254, 0.35) !important;
+  box-shadow: 0 10px 30px -10px rgba(0, 242, 254, 0.2), 0 0 1px 1px rgba(0, 242, 254, 0.2) !important;
+}
+
+.metric-label {
+  font-size: 0.72rem !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase !important;
+  color: rgba(255, 255, 255, 0.55) !important;
+  font-weight: 700 !important;
+}
+
+.metric-value {
+  font-weight: 800 !important;
+  letter-spacing: -0.035em !important;
+}
+
+/* 4. MotionSites Signature Pill Toggles & Badges */
+.auth-role-tabs,
+.role-tabs {
+  display: flex !important;
+  gap: 4px !important;
+  background: rgba(16, 25, 44, 0.65) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 9999px !important;
+  padding: 4px !important;
+  backdrop-filter: blur(12px) !important;
+}
+
+.role-tab-btn {
+  border-radius: 9999px !important;
+  padding: 8px 16px !important;
+  font-size: 0.84rem !important;
+  font-weight: 600 !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.role-tab-btn.active {
+  background: #1C2740 !important;
+  color: #FFFFFF !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.28) !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4), 0 0 15px rgba(0, 242, 254, 0.15) !important;
+}
+
+.brand-pill,
+.badge-pill,
+.badge-master {
+  border-radius: 9999px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.05em !important;
+  text-transform: uppercase !important;
+}
+
+.brand-tag {
+  border-radius: 9999px !important;
+  padding: 3px 10px !important;
+  font-size: 0.68rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.05em !important;
+  text-transform: uppercase !important;
+}
+
+.status-pill {
+  border-radius: 9999px !important;
+  padding: 4px 12px !important;
+  font-size: 0.72rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.04em !important;
+}
+
+.status-pill.taken {
+  background: rgba(16, 185, 129, 0.12) !important;
+  border: 1px solid rgba(16, 185, 129, 0.35) !important;
+  color: #6EE7B7 !important;
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.1) !important;
+}
+
+.status-pill.missed {
+  background: rgba(239, 68, 68, 0.12) !important;
+  border: 1px solid rgba(239, 68, 68, 0.35) !important;
+  color: #FCA5A5 !important;
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.1) !important;
+}
+
+.status-pill.pending {
+  background: rgba(245, 158, 11, 0.12) !important;
+  border: 1px solid rgba(245, 158, 11, 0.35) !important;
+  color: #FCD34D !important;
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.1) !important;
+}
+
+/* 5. MotionSites Primary & Secondary Action Buttons */
+.btn-cta,
+.btn-primary-auth,
+.btn-primary-header {
+  background: linear-gradient(135deg, #0B9F9C 0%, #00F2FE 100%) !important;
+  color: #042022 !important;
+  font-weight: 700 !important;
+  border-radius: 9999px !important;
+  border: none !important;
+  padding: 10px 22px !important;
+  box-shadow: 0 6px 20px rgba(0, 242, 254, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.15) !important;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  letter-spacing: -0.01em !important;
+}
+
+.btn-cta:hover,
+.btn-primary-auth:hover,
+.btn-primary-header:hover {
+  transform: translateY(-2px) scale(1.02) !important;
+  box-shadow: 0 10px 28px rgba(0, 242, 254, 0.5), 0 0 0 2px rgba(0, 242, 254, 0.4) !important;
+}
+
+.btn-secondary {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.2) !important;
+  color: #FFFFFF !important;
+  border-radius: 9999px !important;
+  padding: 10px 20px !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  backdrop-filter: blur(8px) !important;
+}
+
+.btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(0, 242, 254, 0.3) !important;
+  transform: translateY(-1px) !important;
+}
+
+.btn-admin-header {
+  border-radius: 9999px !important;
+  padding: 8px 18px !important;
+  background: rgba(239, 68, 68, 0.12) !important;
+  border: 1px solid rgba(239, 68, 68, 0.3) !important;
+  color: #FCA5A5 !important;
+  transition: all 0.2s ease !important;
+}
+
+.btn-admin-header:hover {
+  background: rgba(239, 68, 68, 0.22) !important;
+  border-color: #EF4444 !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 0 16px rgba(239, 68, 68, 0.25) !important;
+}
+
+/* 6. MotionSites Form Inputs & Interactive Controls */
+.auth-input,
+.form-input,
+.filter-input,
+select.auth-input,
+textarea.form-input {
+  background: rgba(14, 23, 40, 0.6) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.16) !important;
+  border-radius: 12px !important;
+  color: #FFFFFF !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  outline: none !important;
+}
+
+.auth-input:focus,
+.form-input:focus,
+.filter-input:focus {
+  border-color: #00F2FE !important;
+  background: rgba(18, 30, 54, 0.85) !important;
+  box-shadow: 0 0 0 3px rgba(0, 242, 254, 0.18), 0 0 20px rgba(0, 242, 254, 0.12) !important;
+}
+
+/* 7. MotionSites Data Tables & Lists */
+.med-table th,
+.history-table th,
+.admin-table th,
+.caregiver-table th {
+  background: rgba(10, 16, 30, 0.6) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+  color: rgba(255, 255, 255, 0.6) !important;
+  font-size: 0.72rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.06em !important;
+  text-transform: uppercase !important;
+  padding: 14px 18px !important;
+}
+
+.med-table td,
+.history-table td,
+.admin-table td,
+.caregiver-table td {
+  padding: 16px 18px !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04) !important;
+  font-size: 0.875rem !important;
+  transition: background 0.15s ease !important;
+}
+
+.med-table tbody tr:hover td,
+.history-table tbody tr:hover td,
+.admin-table tbody tr:hover td,
+.caregiver-table tbody tr:hover td {
+  background: rgba(255, 255, 255, 0.035) !important;
+}
+
+/* 8. MotionSites Floating MediVoice AI Assistant */
+.medivoice-trigger-btn {
+  border-radius: 9999px !important;
+  background: linear-gradient(135deg, #0B9F9C 0%, #00F2FE 100%) !important;
+  color: #042022 !important;
+  box-shadow: 0 12px 32px -5px rgba(0, 242, 254, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.2) !important;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.medivoice-trigger-btn:hover {
+  transform: translateY(-2px) scale(1.03) !important;
+  box-shadow: 0 16px 40px -5px rgba(0, 242, 254, 0.6), 0 0 0 2px rgba(0, 242, 254, 0.5) !important;
+}
+
+.medivoice-drawer {
+  background: rgba(8, 14, 27, 0.94) !important;
+  backdrop-filter: blur(28px) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(190%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-top: 1px solid rgba(0, 242, 254, 0.35) !important;
+  border-radius: 20px !important;
+  box-shadow: 0 30px 70px -15px rgba(0, 0, 0, 0.8), 0 0 40px rgba(0, 242, 254, 0.12) !important;
+}
+
+.medivoice-header {
+  background: rgba(12, 20, 38, 0.75) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+.medivoice-chip {
+  border-radius: 9999px !important;
+  background: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  backdrop-filter: blur(10px) !important;
+  color: rgba(255, 255, 255, 0.72) !important;
+  font-size: 0.75rem !important;
+  font-weight: 500 !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.medivoice-chip:hover {
+  background: rgba(0, 242, 254, 0.14) !important;
+  border-color: rgba(0, 242, 254, 0.4) !important;
+  color: #00F2FE !important;
+  transform: translateY(-1px) !important;
+}
+
+.medivoice-mic-btn {
+  border-radius: 50% !important;
+  background: linear-gradient(135deg, #0B9F9C 0%, #00F2FE 100%) !important;
+  color: #042022 !important;
+  box-shadow: 0 4px 16px rgba(0, 242, 254, 0.3) !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.medivoice-mic-btn:hover {
+  transform: scale(1.06) !important;
+  box-shadow: 0 6px 22px rgba(0, 242, 254, 0.5) !important;
+}
+
+.medivoice-mic-btn.listening {
+  background: #EF4444 !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 0 25px rgba(239, 68, 68, 0.6) !important;
+}
+
+.medivoice-text-input {
+  border-radius: 9999px !important;
+  background: rgba(16, 26, 48, 0.7) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.18) !important;
+  padding: 0 16px !important;
+}
+
+.medivoice-send-btn {
+  border-radius: 50% !important;
+}
+
+.medivoice-msg.assistant {
+  background: rgba(17, 28, 52, 0.75) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.14) !important;
+  backdrop-filter: blur(12px) !important;
+  border-radius: 14px 14px 14px 4px !important;
+}
+
+.medivoice-msg.user {
+  background: linear-gradient(135deg, #0B9F9C 0%, #07716F 100%) !important;
+  border: 1px solid rgba(0, 242, 254, 0.25) !important;
+  border-radius: 14px 14px 4px 14px !important;
+  box-shadow: 0 4px 14px rgba(11, 159, 156, 0.2) !important;
+}
+
+/* 9. MotionSites Authentication Split-Card Polish */
+.auth-card {
+  background: rgba(10, 16, 29, 0.92) !important;
+  backdrop-filter: blur(24px) !important;
+  -webkit-backdrop-filter: blur(24px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.2) !important;
+  border-radius: 24px !important;
+  box-shadow: 0 35px 70px -15px rgba(0, 0, 0, 0.75), 0 0 1px 1px rgba(255, 255, 255, 0.06) !important;
+}
+
+.auth-left {
+  background: linear-gradient(145deg, #074747 0%, #092c2c 50%, #051a1a 100%) !important;
+  border-top-left-radius: 24px !important;
+  border-bottom-left-radius: 24px !important;
+}
+
+.brand-pill {
+  background: rgba(12, 20, 36, 0.75) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.24) !important;
+  color: #FFFFFF !important;
+  backdrop-filter: blur(14px) !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4), 0 0 20px rgba(0, 242, 254, 0.12) !important;
+}
+
+.brand-pill svg {
+  color: #00F2FE !important;
+}
+
