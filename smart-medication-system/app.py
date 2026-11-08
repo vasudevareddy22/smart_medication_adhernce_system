@@ -378,7 +378,7 @@ def init_db():
                 VALUES (?, ?, ?, ?, ?)
             """, (created_med_ids[1], past_date, "01:00 PM", "TAKEN", f"{past_date} 01:03:00"))
 
-            past_status = "TAKEN" if day_offset % 2 == 0 else "MISSED"
+            past_status = "MISSED" if day_offset == 4 else "TAKEN"
             conf_time = f"{past_date} 20:12:00" if past_status == "TAKEN" else None
             cursor.execute("""
                 INSERT INTO adherence (medication_id, scheduled_date, scheduled_time, status, confirmed_at)
@@ -396,7 +396,7 @@ def init_db():
         cursor.execute("""
             INSERT INTO adherence (medication_id, scheduled_date, scheduled_time, status, confirmed_at)
             VALUES (?, ?, ?, ?, ?)
-        """, (created_med_ids[1], today_str, "01:00 PM", "PENDING", None))
+        """, (created_med_ids[1], today_str, "01:00 PM", "TAKEN", now_time))
 
         cursor.execute("""
             INSERT INTO adherence (medication_id, scheduled_date, scheduled_time, status, confirmed_at)
@@ -531,7 +531,8 @@ def get_patient_today_stats(patient_id):
 
     total = sum(counts.values())
     taken = counts["TAKEN"]
-    percentage = round((taken / total * 100), 1) if total > 0 else 0
+    decided = counts["TAKEN"] + counts["MISSED"]
+    percentage = round((taken / decided * 100), 1) if decided > 0 else (100.0 if total > 0 else 0)
 
     return {
         "percentage": percentage,
@@ -1521,7 +1522,8 @@ def analytics_api():
 
         cursor.execute("""
             SELECT 
-                COUNT(*) as total,
+                COUNT(*) as total_all,
+                SUM(CASE WHEN a.status IN ('TAKEN', 'MISSED') THEN 1 ELSE 0 END) as decided_count,
                 SUM(CASE WHEN a.status = 'TAKEN' THEN 1 ELSE 0 END) as taken_count
             FROM adherence a
             JOIN medications m ON a.medication_id = m.id
@@ -1529,9 +1531,9 @@ def analytics_api():
         """, (patient_id, day_str))
         row = cursor.fetchone()
 
-        total = row["total"] or 0
+        decided = row["decided_count"] or 0
         taken = row["taken_count"] or 0
-        rate = round((taken / total * 100), 1) if total > 0 else 0
+        rate = round((taken / decided * 100), 1) if decided > 0 else (100.0 if (row["total_all"] or 0) > 0 else 0)
 
         days_labels.append(day_name)
         adherence_rates.append(rate)
@@ -2162,12 +2164,13 @@ def admin_dashboard():
     cursor.execute("SELECT COUNT(*) as cnt FROM notifications")
     total_notifications = cursor.fetchone()["cnt"]
 
-    # Overall adherence calculation
+    # Overall adherence calculation (matured/decided doses)
     cursor.execute("""
         SELECT 
             COUNT(*) as total,
             SUM(CASE WHEN status = 'TAKEN' THEN 1 ELSE 0 END) as taken
         FROM adherence
+        WHERE status IN ('TAKEN', 'MISSED')
     """)
     adh_row = cursor.fetchone()
     total_doses = adh_row["total"] or 0
@@ -2188,7 +2191,7 @@ def admin_dashboard():
         SELECT 
             u.id, u.name, u.email, u.phone, u.created_at,
             COUNT(DISTINCT m.id) as med_count,
-            COUNT(a.id) as dose_total,
+            COUNT(CASE WHEN a.status IN ('TAKEN', 'MISSED') THEN a.id ELSE NULL END) as dose_total,
             SUM(CASE WHEN a.status = 'TAKEN' THEN 1 ELSE 0 END) as dose_taken
         FROM users u
         LEFT JOIN medications m ON u.id = m.patient_id

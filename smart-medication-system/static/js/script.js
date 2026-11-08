@@ -973,6 +973,8 @@ async function processMediVoiceBackend(messageText) {
           setTimeout(() => { window.location.href = data.action.url; }, 2200);
         } else if (data.action.type === 'refresh_dashboard') {
           setTimeout(() => { window.location.reload(); }, 2400);
+        } else if (data.action.type === 'open_viva_audit') {
+          setTimeout(() => { openVivaAccuracyModal(); }, 1200);
         }
       }
     } else {
@@ -1589,5 +1591,39 @@ function toggleMuteFromModal(checked) {
   const settingsMute = document.getElementById('voiceMuteToggle');
   if (settingsMute) settingsMute.checked = checked;
 }
+
+/* ==========================================================================
+   VIVA EVALUATION AUDIT (>90%) MODAL CONTROLLER
+   ========================================================================== */
+function openVivaAccuracyModal() {
+  const modal = document.getElementById('vivaAccuracyModal');
+  if (modal) {
+    modal.classList.add('active');
+    document.body.style.overflow = 'hidden';
+  }
+}
+
+function closeVivaAccuracyModal() {
+  const modal = document.getElementById('vivaAccuracyModal');
+  if (modal) {
+    modal.classList.remove('active');
+    document.body.style.overflow = '';
+  }
+}
+
+// Close viva modal on ESC key or backdrop click
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    closeVivaAccuracyModal();
+  }
+});
+
+document.addEventListener('click', (e) => {
+  const modal = document.getElementById('vivaAccuracyModal');
+  if (modal && e.target === modal) {
+    closeVivaAccuracyModal();
+  }
+});
+
 
 
