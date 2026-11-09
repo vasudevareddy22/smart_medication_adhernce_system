@@ -40,6 +40,25 @@ else:
     DATABASE_PATH = os.path.join(BASE_DIR, "database.db")
 
 
+# Vercel Serverless Path Resolution Middleware
+# Rewrites forwarded /api/index/<path> back to /<path> for Flask routing
+class VercelPathFixMiddleware:
+    def __init__(self, wsgi_app):
+        self.wsgi_app = wsgi_app
+
+    def __call__(self, environ, start_response):
+        path_info = environ.get('PATH_INFO', '')
+        if path_info.startswith('/api/index'):
+            subpath = path_info[len('/api/index'):]
+            if not subpath or subpath == '/':
+                environ['PATH_INFO'] = '/'
+            else:
+                environ['PATH_INFO'] = subpath if subpath.startswith('/') else ('/' + subpath)
+        return self.wsgi_app(environ, start_response)
+
+app.wsgi_app = VercelPathFixMiddleware(app.wsgi_app)
+
+
 def get_db():
     conn = sqlite3.connect(DATABASE_PATH)
     conn.row_factory = sqlite3.Row
